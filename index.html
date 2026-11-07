@@ -31,6 +31,7 @@
     <div class="marque"><b>Quittances de loyer</b>SCI CBI — Annie Cresp</div>
     <nav class="onglets" role="tablist">
       <button class="onglet actif" data-onglet="creer" role="tab">Créer</button>
+      <button class="onglet" data-onglet="suivi" role="tab">Suivi</button>
       <button class="onglet" data-onglet="locataires" role="tab">Locataires</button>
     </nav>
   </div>
@@ -98,6 +99,7 @@
         <h2 class="etape"><span class="num">4</span>Envoyer</h2>
         <p class="attente" id="attente-4">Choisissez d'abord un locataire (étape 1).</p>
         <div id="envoi" hidden>
+          <p class="deja-envoyee" id="deja-envoyee" hidden></p>
           <div class="actions">
             <button class="btn btn-principal" id="btn-envoyer">✉️&nbsp; Envoyer par mail</button>
             <p class="aide-mail" id="aide-mail"></p>
@@ -116,6 +118,20 @@
         </div>
       </details>
     </div>
+  </section>
+
+  <!-- ================= ONGLET SUIVI ================= -->
+  <section id="onglet-suivi">
+    <div class="carte">
+      <h2 class="titre-suivi">Quittances envoyées</h2>
+      <div class="grille2">
+        <div class="champ"><label for="s-mois">Mois</label><select id="s-mois"></select></div>
+        <div class="champ"><label for="s-annee">Année</label><select id="s-annee"></select></div>
+      </div>
+      <p class="suivi-bilan" id="suivi-bilan"></p>
+    </div>
+    <div id="suivi-liste"></div>
+    <p class="note-appareil">Ce suivi est gardé sur cet iPad.</p>
   </section>
 
   <!-- ================= ONGLET LOCATAIRES ================= -->

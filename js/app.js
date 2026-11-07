@@ -3,7 +3,7 @@ import { BAILLEUR, LOGEMENTS, MOIS, LIEU_PAR_DEFAUT, SIGNATURE_URL, APP_VERSION 
 import { formatEuros, formatSaisie, lireMontant } from "./montant.js";
 import { telechargerLocataires } from "./sheet.js";
 import { chargerSignature, genererFichier, dateFr } from "./pdf.js";
-import { reglages, demanderPersistance } from "./storage.js";
+import { reglages, envois, demanderPersistance } from "./storage.js";
 import { texteMail, titreMail } from "./mail.js";
 
 const $ = (id) => document.getElementById(id);
@@ -18,7 +18,7 @@ const etat = {
   horsLigne: false,
   enCours: true,      // première vérification de la liste en cours
   choisi: null,       // clé du locataire choisi
-  envoyes: new Set(), // « clé|année-mois » envoyées depuis l'ouverture de l'app (liste « tous les locataires »)
+  envois: new Map(),  // suivi : « clé|année-mois » → { quand, qui, … } (gardé sur l'appareil)
 };
 
 /* ---------------------------------------------------------------- Messages */
@@ -34,6 +34,7 @@ function afficherOnglet(nom) {
   document.querySelectorAll(".onglet").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
   document.querySelectorAll("main > section").forEach((s) => s.classList.toggle("actif", s.id === "onglet-" + nom));
   if (nom === "locataires") afficherLocataires();
+  if (nom === "suivi") afficherSuivi();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll(".onglet").forEach((b) => { b.onclick = () => afficherOnglet(b.dataset.onglet); });
@@ -118,10 +119,12 @@ function afficherTout() {
   afficherChoix();
   afficherLocataires();
   afficherTous();
+  afficherSuivi();
 }
 
 /* ---------------------------------------------------------------- Onglet Créer */
 function afficherChoix() {
+  const { moisIdx, annee } = moisChoisi();
   const html = Object.keys(LOGEMENTS).map((k) => {
     const liste = etat.locataires.filter((l) => l.appt === k);
     if (!liste.length) return "";
@@ -129,7 +132,9 @@ function afficherChoix() {
       <div class="groupe-titre"><span class="tag" data-k="${k}">${k}</span>${esc(LOGEMENTS[k].adresse)}</div>
       <div class="choix">${liste.map((l) => `
         <button class="choix-btn${l.cle === etat.choisi ? " choisi" : ""}" data-cle="${esc(l.cle)}" aria-pressed="${l.cle === etat.choisi}">
-          <span class="coche">${l.cle === etat.choisi ? "✓" : ""}</span>${esc(l.civ)} ${esc(l.nom)}
+          <span class="coche">${l.cle === etat.choisi ? "✓" : ""}</span>
+          <span class="choix-texte">${esc(l.civ)} ${esc(l.nom)}${envoiDe(l.cle, annee, moisIdx)
+            ? `<span class="choix-statut">✓ ${esc(MOIS[moisIdx])} déjà envoyée</span>` : ""}</span>
         </button>`).join("")}
       </div></div>`;
   }).join("");
@@ -153,14 +158,28 @@ function choisirLocataire(cle, defiler) {
 
 function initMois() {
   const now = new Date();
-  $("c-mois").innerHTML = MOIS.map((m, i) => `<option value="${i}">${m}</option>`).join("");
   const y = now.getFullYear();
-  $("c-annee").innerHTML = [y - 2, y - 1, y, y + 1].map((v) => `<option value="${v}">${v}</option>`).join("");
-  $("c-mois").value = String(now.getMonth());
-  $("c-annee").value = String(y);
+  for (const [m, a] of [["c-mois", "c-annee"], ["s-mois", "s-annee"]]) {
+    $(m).innerHTML = MOIS.map((x, i) => `<option value="${i}">${x}</option>`).join("");
+    $(a).innerHTML = [y - 2, y - 1, y, y + 1].map((v) => `<option value="${v}">${v}</option>`).join("");
+    $(m).value = String(now.getMonth());
+    $(a).value = String(y);
+  }
 }
 const moisChoisi = () => ({ moisIdx: +$("c-mois").value, annee: +$("c-annee").value });
 const cleEnvoi = (cle, annee, moisIdx) => `${cle}|${annee}-${pad(moisIdx + 1)}`;
+const envoiDe = (cle, annee, moisIdx) => etat.envois.get(cleEnvoi(cle, annee, moisIdx)) || null;
+
+/** Change le mois de travail (le même dans « Créer » et « Suivi »). */
+function changerMois(moisIdx, annee) {
+  for (const [m, a] of [["c-mois", "c-annee"], ["s-mois", "s-annee"]]) {
+    $(m).value = String(moisIdx); $(a).value = String(annee);
+  }
+  remplirFormulaire();
+  afficherChoix();
+  afficherTous();
+  afficherSuivi();
+}
 
 function remplirFormulaire() {
   const l = locataireChoisi();
@@ -179,6 +198,7 @@ function remplirFormulaire() {
   $("aide-mail").innerHTML = l.email
     ? `Adresse e-mail de ${esc(l.civ)} ${esc(l.nom)} :<br><strong>${esc(l.email)}</strong>`
     : `Pas d'adresse e-mail enregistrée pour ${esc(l.civ)} ${esc(l.nom)}.`;
+  majDejaEnvoyee();
   document.querySelectorAll("#verif input").forEach((i) => i.classList.remove("invalide"));
   effacerMessage("message-creer");
   majTotal();
@@ -188,7 +208,17 @@ function majTotal() {
   const loyer = lireMontant($("c-loyer").value), charges = lireMontant($("c-charges").value || "0");
   $("c-total").textContent = loyer === null || charges === null ? "—" : formatEuros(loyer + charges);
 }
-$("c-mois").onchange = $("c-annee").onchange = () => { remplirFormulaire(); afficherTous(); };
+$("c-mois").onchange = $("c-annee").onchange = () => changerMois(+$("c-mois").value, +$("c-annee").value);
+$("s-mois").onchange = $("s-annee").onchange = () => changerMois(+$("s-mois").value, +$("s-annee").value);
+
+/** Étape 4 : rappel si la quittance de ce mois est déjà partie. */
+function majDejaEnvoyee() {
+  const l = locataireChoisi();
+  const { moisIdx, annee } = moisChoisi();
+  const e = l && envoiDe(l.cle, annee, moisIdx);
+  $("deja-envoyee").hidden = !e;
+  if (e) $("deja-envoyee").textContent = `✓ La quittance de ${MOIS[moisIdx].toLowerCase()} ${annee} a déjà été envoyée ${quand(e.le)}.`;
+}
 $("c-loyer").oninput = $("c-charges").oninput = majTotal;
 
 /** Toutes les informations de la quittance. */
@@ -244,6 +274,80 @@ function lireFormulaire() {
     moisIdx, annee, loyer, charges, datePaiement, debut, fin, nom, dateQuittance,
     civ: $("c-civ").value,
     lieu: $("c-lieu").value.trim() || LIEU_PAR_DEFAUT,
+  });
+}
+
+/* ---------------------------------------------------------------- Suivi des envois */
+const MOIS_MIN = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+/** « le 7 novembre 2026 à 14 h 05 » */
+function quand(isoDate) {
+  const d = new Date(isoDate);
+  return `le ${d.getDate() === 1 ? "1er" : d.getDate()} ${MOIS_MIN[d.getMonth()]} ${d.getFullYear()} à\u00a0${d.getHours()}\u00a0h\u00a0${pad(d.getMinutes())}`;
+}
+
+function noterEnvoi(q) {
+  const e = {
+    id: q.id, cle: q.cle, appt: q.appt, civ: q.civ, nom: q.nom,
+    moisIdx: q.moisIdx, annee: q.annee, total: q.loyer + q.charges,
+    le: new Date().toISOString(),
+  };
+  etat.envois.set(e.id, e);
+  envois.noter(e).catch((err) => console.error(err));
+  afficherChoix();
+  majDejaEnvoyee();
+  afficherTous();
+  afficherSuivi();
+}
+
+function oublierEnvoi(id) {
+  etat.envois.delete(id);
+  envois.oublier(id).catch((err) => console.error(err));
+  afficherChoix();
+  majDejaEnvoyee();
+  afficherTous();
+  afficherSuivi();
+}
+
+function afficherSuivi() {
+  const { moisIdx, annee } = moisChoisi();
+  const leMois = `${MOIS[moisIdx].toLowerCase()} ${annee}`;
+  const actifs = Object.keys(LOGEMENTS).flatMap((k) => etat.locataires.filter((l) => l.appt === k));
+  // envois de ce mois pour des personnes qui ne sont plus dans la liste
+  const anciens = [...etat.envois.values()].filter((e) => e.annee === annee && e.moisIdx === moisIdx
+    && !actifs.some((l) => l.cle === e.cle));
+  const nbFaits = actifs.filter((l) => envoiDe(l.cle, annee, moisIdx)).length;
+
+  $("suivi-bilan").className = "suivi-bilan " + (actifs.length && nbFaits === actifs.length ? "complet" : "");
+  $("suivi-bilan").textContent = !actifs.length ? ""
+    : nbFaits === actifs.length ? `✓ Toutes les quittances de ${leMois} sont envoyées.`
+    : nbFaits === 0 ? `Aucune quittance de ${leMois} envoyée pour le moment.`
+    : `${nbFaits} quittance${nbFaits > 1 ? "s" : ""} de ${leMois} envoyée${nbFaits > 1 ? "s" : ""} sur ${actifs.length}.`;
+
+  const ligne = (appt, civ, nom, cle, e, actif) => `
+    <div class="suivi-ligne ${e ? "fait" : "a-faire"}">
+      <div class="suivi-qui">
+        <span class="tag" data-k="${esc(appt)}">${esc(appt)}</span> <span class="qui">${esc(civ)} ${esc(nom)}</span>
+        <span class="suivi-statut">${e ? `✓ Envoyée ${esc(quand(e.le))}` : "Pas encore envoyée"}</span>
+      </div>
+      ${e ? `<button class="btn btn-secondaire btn-petit" data-oublier="${esc(e.id)}">Marquer non envoyée</button>`
+          : actif ? `<button class="btn btn-principal btn-petit" data-faire="${esc(cle)}">Faire la quittance</button>` : ""}
+    </div>`;
+  $("suivi-liste").innerHTML = (actifs.length || anciens.length) ? `<div class="carte">
+      ${actifs.map((l) => ligne(l.appt, l.civ, l.nom, l.cle, envoiDe(l.cle, annee, moisIdx), true)).join("")}
+      ${anciens.length ? `<p class="suivi-anciens">Plus dans la liste des locataires :</p>`
+        + anciens.map((e) => ligne(e.appt, e.civ, e.nom, e.cle, e, false)).join("") : ""}
+    </div>` : "";
+
+  $("suivi-liste").querySelectorAll("[data-faire]").forEach((b) => {
+    b.onclick = () => { afficherOnglet("creer"); choisirLocataire(b.dataset.faire, true); };
+  });
+  $("suivi-liste").querySelectorAll("[data-oublier]").forEach((b) => {
+    b.onclick = () => {
+      const e = etat.envois.get(b.dataset.oublier);
+      if (e && confirm(`Marquer la quittance de ${MOIS[e.moisIdx].toLowerCase()} ${e.annee} de ${e.civ} ${e.nom} comme NON envoyée ?`)) {
+        oublierEnvoi(e.id);
+      }
+    };
   });
 }
 
@@ -309,7 +413,7 @@ function creer(action) {
   }
   message("message-creer", "info", action === "envoyer" ? "Ouverture de l'envoi…" : "Préparation du PDF…");
   promesse.then((r) => {
-    if (action === "envoyer" && (r === "partage" || r === "telecharge")) { etat.envoyes.add(q.id); afficherTous(); }
+    if (action === "envoyer" && (r === "partage" || r === "telecharge")) noterEnvoi(q);
     message("message-creer", r === "echec" ? "erreur" : r === "annule" ? "info" : "ok",
       MSG_LIVRAISON[action][r] || MSG_LIVRAISON[action].telecharge);
   });
@@ -323,7 +427,7 @@ function afficherTous() {
   $("tous-intro").innerHTML = `Pour <strong>${MOIS[moisIdx]} ${annee}</strong> (le mois choisi à l'étape 2), avec les montants de la liste `
     + `et un paiement le 1er du mois. Appuyez sur « Envoyer » pour chaque locataire, l'un après l'autre.`;
   $("tous-liste").innerHTML = etat.locataires.map((l) => {
-    const fait = etat.envoyes.has(cleEnvoi(l.cle, annee, moisIdx));
+    const fait = !!envoiDe(l.cle, annee, moisIdx);
     return `<div class="tous-ligne">
       <div><span class="tag" data-k="${l.appt}">${l.appt}</span> <span class="qui">${esc(l.civ)} ${esc(l.nom)}</span>
         <span class="combien">${formatEuros(l.loyer + l.charges)}</span>
@@ -355,9 +459,8 @@ function envoyerUn(cle) {
     if (r === "annule") message("message-tous", "info", `Envoi à ${qui} annulé. Vous pouvez recommencer.`);
     else if (r === "echec") message("message-tous", "erreur", `L'envoi à ${qui} n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer ».`);
     else {
-      etat.envoyes.add(q.id);
+      noterEnvoi(q);
       message("message-tous", "ok", `Quittance de ${qui} : c'est fait.`);
-      afficherTous();
     }
   });
 }
@@ -429,6 +532,10 @@ async function demarrer() {
   try { await chargerSignature(SIGNATURE_URL); }
   catch (e) { console.error(e); }
 
+  // 0) suivi des envois déjà faits sur cet appareil
+  try {
+    for (const e of (await envois.tous()) || []) etat.envois.set(e.id, e);
+  } catch (e) { console.error(e); }
   // 1) dernière liste connue (affichage immédiat, même sans réseau)
   try {
     const cache = await reglages.lire("liste");

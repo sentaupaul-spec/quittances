@@ -74,11 +74,7 @@ def test_liste_chargee_et_groupee(navigateur, serveur, ecran):
     ctx.close()
 
 
-def test_accessibilite_tailles(navigateur, serveur):
-    ctx, page, _, _ = ouvrir(navigateur, serveur)
-    choisir(page, "Julie Martin")
-    page.locator("#plus summary").click()
-    petits = page.evaluate("""() => {
+VERIF_TAILLES = """() => {
       const pb = [];
       for (const el of document.querySelectorAll('body *')) {
         const r = el.getBoundingClientRect(); const st = getComputedStyle(el);
@@ -91,8 +87,18 @@ def test_accessibilite_tailles(navigateur, serveur):
         if (el.matches('input, select, summary') && r.height < 48) pb.push('zone ' + Math.round(r.height) + 'px : ' + el.id);
       }
       return pb;
-    }""")
-    assert petits == []
+    }"""
+
+
+def test_accessibilite_tailles(navigateur, serveur):
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.locator("#plus summary").click()
+    page.click("#btn-envoyer")                                   # pour afficher aussi les mentions « déjà envoyée »
+    expect(page.locator("#deja-envoyee")).to_be_visible()
+    assert page.evaluate(VERIF_TAILLES) == []
+    page.click("[data-onglet='suivi']")
+    assert page.evaluate(VERIF_TAILLES) == []
     ctx.close()
 
 
@@ -129,8 +135,8 @@ def test_creation_et_partage(navigateur, serveur):
     assert "six cent cinq euros et cinquante centimes (605,50 €)" in texte.replace("\n", " ")
     assert len(pdf) < 200 * 1024
 
-    # aucun onglet Archives
-    expect(page.locator(".onglet")).to_have_count(2)
+    # onglets : Créer, Suivi, Locataires (pas d'archives)
+    expect(page.locator(".onglet")).to_have_text(["Créer", "Suivi", "Locataires"])
     assert erreurs == []
     ctx.close()
 
@@ -262,7 +268,7 @@ def test_captures_onglets(navigateur, serveur, ecran):
     page.click("#btn-envoyer")
     expect(page.locator("#message-creer")).to_contain_text("C'est fait")
     page.screenshot(path=str(SORTIE / f"ecran_creer_rempli_{ecran}.png"), full_page=True)
-    for onglet in ["locataires"]:
+    for onglet in ["suivi", "locataires"]:
         page.click(f"[data-onglet='{onglet}']")
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.screenshot(path=str(SORTIE / f"ecran_{onglet}_{ecran}.png"), full_page=True)
@@ -313,16 +319,115 @@ def test_modification_du_sheet_prise_en_compte(navigateur, serveur):
     ctx.close()
 
 
-def test_rien_n_est_conserve(navigateur, serveur):
-    """Seule la liste des locataires est gardée sur l'appareil, aucune quittance."""
+def test_seul_le_suivi_est_conserve(navigateur, serveur):
+    """Sur l'appareil : la liste des locataires et le suivi des envois (qui / quel mois / quel jour), aucun PDF."""
     ctx, page, _, _ = ouvrir(navigateur, serveur)
     choisir(page, "Julie Martin")
     page.click("#btn-envoyer")
     expect(page.locator("#message-creer")).to_have_text("C'est fait.")
-    cles = page.evaluate("""() => new Promise((ok) => {
+    contenu = page.evaluate("""() => new Promise((ok) => {
       const r = indexedDB.open('quittances');
-      r.onsuccess = () => { const db = r.result; const t = db.transaction('reglages');
-        const q = t.objectStore('reglages').getAllKeys(); q.onsuccess = () => ok([[...db.objectStoreNames], q.result]); };
+      r.onsuccess = () => { const db = r.result; const t = db.transaction(['reglages', 'envois']);
+        const a = t.objectStore('reglages').getAllKeys(); const b = t.objectStore('envois').getAll();
+        t.oncomplete = () => ok([[...db.objectStoreNames].sort(), a.result, b.result]); };
     })""")
-    assert cles == [["reglages"], ["liste"]]
+    magasins, reglages, envois = contenu
+    assert magasins == ["envois", "reglages"]
+    assert reglages == ["liste"]
+    assert len(envois) == 1
+    assert set(envois[0]) == {"id", "cle", "appt", "civ", "nom", "moisIdx", "annee", "total", "le"}
+    assert envois[0]["nom"] == "Julie Martin" and envois[0]["total"] == 600
+    ctx.close()
+
+
+def test_suivi_des_envois(navigateur, serveur):
+    ctx, page, _, erreurs = ouvrir(navigateur, serveur)
+    page.select_option("#c-mois", "10"); page.select_option("#c-annee", "2026")
+
+    # rien d'envoyé au départ
+    page.click("[data-onglet='suivi']")
+    expect(page.locator("#s-mois")).to_have_value("10")          # même mois que dans « Créer »
+    expect(page.locator("#suivi-bilan")).to_have_text("Aucune quittance de novembre 2026 envoyée pour le moment.")
+    lignes = page.locator(".suivi-ligne")
+    expect(lignes).to_have_count(4)
+    expect(lignes.filter(has_text="Pas encore envoyée")).to_have_count(4)
+
+    # « Faire la quittance » depuis le suivi → onglet Créer, locataire choisi
+    lignes.filter(has_text="Julie Martin").locator("button").click()
+    expect(page.locator("#onglet-creer")).to_be_visible()
+    expect(page.locator("#resume")).to_contain_text("Julie Martin")
+    expect(page.locator("#deja-envoyee")).to_be_hidden()
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
+    expect(page.locator("#deja-envoyee")).to_contain_text("La quittance de novembre 2026 a déjà été envoyée le ")
+    expect(page.locator(".choix-btn", has_text="Julie Martin")).to_contain_text("✓ Novembre déjà envoyée")
+    expect(page.locator(".choix-btn", has_text="Jean Dupont")).not_to_contain_text("déjà envoyée")
+
+    # un autre via « tous les locataires »
+    page.locator("#tous summary").click()
+    page.locator(".tous-ligne", has_text="Jean Dupont").locator("button").click()
+    expect(page.locator(".tous-ligne", has_text="Jean Dupont")).to_contain_text("✓ Envoyée")
+    expect(page.locator(".tous-ligne", has_text="Julie Martin")).to_contain_text("✓ Envoyée")
+
+    page.click("[data-onglet='suivi']")
+    expect(page.locator("#suivi-bilan")).to_have_text("2 quittances de novembre 2026 envoyées sur 4.")
+    expect(lignes.filter(has_text="Julie Martin")).to_contain_text(re.compile(r"✓ Envoyée le \d+ \w+ \d{4} à\s\d+\sh\s\d\d"))
+
+    # toujours là après fermeture / réouverture de l'app
+    page.reload(); page.wait_for_selector("body[data-pret='1']")
+    page.select_option("#c-mois", "10"); page.select_option("#c-annee", "2026")
+    page.click("[data-onglet='suivi']")
+    expect(page.locator("#suivi-bilan")).to_have_text("2 quittances de novembre 2026 envoyées sur 4.")
+
+    # un autre mois : rien d'envoyé
+    page.select_option("#s-mois", "9")
+    expect(page.locator("#suivi-bilan")).to_contain_text("Aucune quittance d")
+    expect(page.locator("#c-mois")).to_have_value("9")            # le mois suit dans « Créer »
+    page.select_option("#s-mois", "10")
+
+    # corriger une erreur : « Marquer non envoyée » (avec confirmation)
+    page.once("dialog", lambda d: d.accept())
+    lignes.filter(has_text="Jean Dupont").locator("button", has_text="Marquer non envoyée").click()
+    expect(lignes.filter(has_text="Jean Dupont")).to_contain_text("Pas encore envoyée")
+    expect(page.locator("#suivi-bilan")).to_have_text("1 quittance de novembre 2026 envoyée sur 4.")
+    page.once("dialog", lambda d: d.dismiss())                   # « Annuler » : rien ne change
+    lignes.filter(has_text="Julie Martin").locator("button").click()
+    expect(lignes.filter(has_text="Julie Martin")).to_contain_text("✓ Envoyée")
+
+    # envoi annulé dans le menu Partager : pas noté comme envoyé
+    page.evaluate("window.__reponsePartage = 'annule'")
+    page.click("[data-onglet='creer']")
+    choisir(page, "Léa Petit")
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_contain_text("Envoi annulé")
+    page.click("[data-onglet='suivi']")
+    expect(lignes.filter(has_text="Léa Petit")).to_contain_text("Pas encore envoyée")
+
+    # simple téléchargement du PDF : pas noté comme envoyé non plus
+    page.click("[data-onglet='creer']")
+    with page.expect_download():
+        page.click("#btn-telecharger")
+    page.click("[data-onglet='suivi']")
+    expect(lignes.filter(has_text="Léa Petit")).to_contain_text("Pas encore envoyée")
+    page.screenshot(path=str(SORTIE / "ecran_suivi_detail.png"), full_page=True)
+    assert erreurs == []
+    ctx.close()
+
+
+def test_suivi_tout_envoye_et_ancien_locataire(navigateur, serveur):
+    ctx, page, tableau, _ = ouvrir(navigateur, serveur)
+    page.locator("#tous summary").click()
+    for i in range(4):
+        page.locator(".tous-ligne").nth(i).locator("button").click()
+        expect(page.locator(".tous-ligne").nth(i)).to_contain_text("✓ Envoyée")
+    page.click("[data-onglet='suivi']")
+    expect(page.locator("#suivi-bilan")).to_contain_text("✓ Toutes les quittances de")
+    # Paul retire Éric Lanus du tableau : son envoi du mois reste visible à part
+    tableau["csv"] = CSV_DEFAUT.replace("Éric Lanus,480,70,,oui", "Éric Lanus,480,70,,non")
+    page.click("[data-onglet='locataires']"); page.click("#btn-actualiser")
+    expect(page.locator("#message-locataires")).to_contain_text("à jour")
+    page.click("[data-onglet='suivi']")
+    expect(page.locator(".suivi-anciens")).to_be_visible()
+    expect(page.locator(".suivi-ligne", has_text="Éric Lanus")).to_contain_text("✓ Envoyée")
+    expect(page.locator("#suivi-bilan")).to_contain_text("✓ Toutes les quittances de")
     ctx.close()

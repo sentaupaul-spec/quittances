@@ -2,8 +2,8 @@
 
 Application web (PWA) pour iPad : Annie choisit un locataire et un mois, puis envoie la quittance
 PDF par Mail depuis **son** compte. Tout est statique (GitHub Pages), sans serveur, sans compte, gratuit.
-L'app ne conserve aucune quittance : elle les fabrique et les envoie, c'est tout (le mail envoyé reste dans
-le dossier « Envoyés » de Mail).
+L'app ne conserve aucun PDF : elle les fabrique et les envoie (le mail envoyé reste dans le dossier
+« Envoyés » de Mail). Elle note seulement **qui a reçu sa quittance de quel mois, et quand** (onglet « Suivi »).
 
 - **Lien de l'app :** `https://sentaupaul-spec.github.io/quittances/`
 - **Liste des locataires :** [Google Sheet](https://docs.google.com/spreadsheets/d/1QIWrw0728Bn01xriQSWWJtB1HxWUV_yNL8B-QrKn230/edit)
@@ -70,13 +70,13 @@ Puis déploie (§2). Toutes les quittances créées ensuite auront le bon numér
 ## 4. Organisation du code
 
 ```
-index.html               page unique (2 onglets : Créer, Locataires)
+index.html               page unique (3 onglets : Créer, Suivi, Locataires)
 css/app.css              styles (accessibilité « senior » : texte ≥ 18 px, boutons ≥ 56 px)
 js/config.js             ⭐ données fixes : bailleur, SIRET, logements, adresse du Sheet, version
 js/sheet.js              lecture du Google Sheet (CSV) → locataires actifs
 js/montant.js            montants en lettres, format « 1 280,50 € », lecture des montants
 js/pdf.js                génération du PDF (jsPDF, synchrone), nom du fichier
-js/storage.js            IndexedDB : dernière liste de locataires connue (hors ligne)
+js/storage.js            IndexedDB : dernière liste de locataires (hors ligne) + suivi des envois
 js/mail.js               ⭐ texte du mail (objet, « Bonjour Monsieur Nom », signature)
 js/app.js                interface
 sw.js                    service worker (hors ligne + mises à jour automatiques)
@@ -99,10 +99,17 @@ docs/                    notice Annie, installation iPad, à faire
 - **Sur ordinateur** (pas de menu Partager) : le PDF est téléchargé et la messagerie s'ouvre (`mailto:`) avec
   destinataire, objet et texte ; il reste à joindre le fichier.
 - **« Envoyer les quittances de tous les locataires »** (repliée en bas de l'onglet Créer) : une ligne par
-  locataire avec son bouton « Envoyer », coche ✓ « Envoyée » (le temps que l'app reste ouverte).
+  locataire avec son bouton « Envoyer », coche ✓ « Envoyée ».
   Montants du Sheet, paiement le 1er.
-- **Aucune archive.** Rien n'est conservé sur l'iPad à part la dernière liste de locataires. Pour retrouver une
-  ancienne quittance : dossier « Envoyés » de Mail, ou la refaire dans l'app (même mois, mêmes montants).
+- **Suivi des envois (onglet « Suivi »).** Pour le mois choisi (le même que dans « Créer ») : chaque locataire
+  avec « ✓ Envoyée le 7 novembre 2026 à 15 h 59 » ou « Pas encore envoyée » + bouton « Faire la quittance ».
+  Un envoi est noté quand le menu Partager se termine sans annulation (ou, sur ordinateur, quand la messagerie
+  s'ouvre) ; « Télécharger le PDF » ne compte pas. « Marquer non envoyée » corrige une erreur (avec confirmation).
+  Dans « Créer », le bouton du locataire affiche « ✓ Novembre déjà envoyée » et l'étape 4 rappelle la date.
+  Ce suivi est gardé **sur l'iPad seulement** (IndexedDB, quelques octets par envoi, aucun PDF) : un autre
+  appareil ne le voit pas, et il disparaît si l'app est supprimée de l'écran d'accueil.
+- **Aucune archive de PDF.** Pour retrouver une ancienne quittance : dossier « Envoyés » de Mail, ou la refaire
+  dans l'app (même mois, mêmes montants).
 
 
 ## 5. Tests
@@ -121,6 +128,8 @@ python3 -m venv .venv && .venv/bin/pip install -r tests/requirements.txt
   pixel à pixel avec la référence, positions signature/tampon, pas de débordement (noms et montants très longs).
 - `test_app.py` (Playwright, 820×1180 et 1180×820, Sheet simulé) : liste, création + partage, partage annulé,
   saisie invalide, envoi « tous les locataires », modification du Sheet prise en compte, hors ligne, Sheet non
-  partagé, bandeau Safari, rien n'est conservé, tailles minimales du texte et des boutons.
+  partagé, bandeau Safari, suivi des envois (noté, gardé après réouverture, annulation et téléchargement non
+  comptés, « Marquer non envoyée », ancien locataire), seuls la liste et le suivi sont conservés, tailles
+  minimales du texte et des boutons.
 
 Les rendus (captures d'écran, PDF) sont écrits dans `tests/_sortie/` (non versionné).
