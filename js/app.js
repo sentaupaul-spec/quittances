@@ -82,7 +82,8 @@ function afficherEtatListe() {
 }
 
 const MSG_ERREUR = {
-  reseau: "Impossible de charger la liste des locataires. Vérifiez que le wifi est allumé, puis appuyez sur « Réessayer ».",
+  // Un tableau non partagé ressemble aussi à une coupure réseau pour le navigateur : on mentionne Paul.
+  reseau: "Impossible de charger la liste des locataires. Vérifiez que le wifi est allumé, puis appuyez sur « Réessayer ». Si cela continue, prévenez Paul.",
   acces: "La liste des locataires n'est pas accessible pour le moment. Prévenez Paul.",
   format: "La liste des locataires n'a pas pu être lue. Prévenez Paul.",
 };

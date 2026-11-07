@@ -20,7 +20,7 @@ sur ton ordinateur (la liste des locataires s'affiche). Imprime [`notice-annie.p
 - [ ] **Fermer Safari**, puis ouvrir l'app **depuis l'icône**. Vérifier :
   - pas de bandeau jaune ;
   - « Liste mise à jour le … » en haut, et les locataires groupés par logement ;
-  - « Version 1.0.0 » tout en bas.
+  - « Version 1.0.1 » (ou plus) tout en bas.
 - [ ] **Placer l'icône** sur le premier écran, bien visible (dans le Dock si possible).
 
 ## Tests
