@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Quittances">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f5f3ee">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>Quittances</title>
+<link rel="stylesheet" href="css/app.css">
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script type="module" src="js/app.js"></script>
+</head>
+<body>
+
+<div id="bandeau-safari" class="bandeau" hidden>
+  <strong>Vous êtes dans Safari.</strong>
+  Fermez Safari et touchez l'icône <strong>« Quittances »</strong> sur l'écran d'accueil de l'iPad.
+  <span class="bandeau-petit">(Pour installer l'icône : bouton Partager, puis « Sur l'écran d'accueil ».)</span>
+</div>
+
+<header class="haut">
+  <div class="haut-int">
+    <div class="marque"><b>Quittances de loyer</b>SCI CBI — Annie Cresp</div>
+    <nav class="onglets" role="tablist">
+      <button class="onglet actif" data-onglet="creer" role="tab">Créer</button>
+      <button class="onglet" data-onglet="locataires" role="tab">Locataires</button>
+      <button class="onglet" data-onglet="archives" role="tab">Archives</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- ================= ONGLET CRÉER ================= -->
+  <section id="onglet-creer" class="actif">
+    <p id="etat-liste" class="etat-liste" hidden></p>
+
+    <div id="chargement" class="carte"><p class="grand">Chargement de la liste des locataires…</p></div>
+
+    <div id="sans-liste" class="carte" hidden>
+      <p class="grand" id="sans-liste-texte"></p>
+      <button class="btn btn-principal" id="btn-reessayer">Réessayer</button>
+    </div>
+
+    <div id="formulaire" hidden>
+      <div class="carte" id="etape-1">
+        <h2 class="etape"><span class="num">1</span>Choisir le locataire</h2>
+        <div id="choix-locataires"></div>
+      </div>
+
+      <div class="carte" id="etape-2">
+        <h2 class="etape"><span class="num">2</span>Choisir le mois</h2>
+        <div class="grille2">
+          <div class="champ"><label for="c-mois">Mois</label><select id="c-mois"></select></div>
+          <div class="champ"><label for="c-annee">Année</label><select id="c-annee"></select></div>
+        </div>
+      </div>
+
+      <div class="carte" id="etape-3">
+        <h2 class="etape"><span class="num">3</span>Vérifier</h2>
+        <p class="attente" id="attente-3">Choisissez d'abord un locataire (étape 1).</p>
+        <div id="verif" hidden>
+          <p class="resume" id="resume"></p>
+          <div class="grille2">
+            <div class="champ"><label for="c-loyer">Loyer (€)</label><input id="c-loyer" type="text" inputmode="decimal" autocomplete="off"></div>
+            <div class="champ"><label for="c-charges">Charges (€)</label><input id="c-charges" type="text" inputmode="decimal" autocomplete="off"></div>
+          </div>
+          <div class="total"><span>Total</span><span id="c-total">0,00 €</span></div>
+          <div class="champ"><label for="c-datepaiement">Date du paiement</label><input id="c-datepaiement" type="date"></div>
+          <details class="plus" id="plus">
+            <summary>Autres informations (rarement à modifier)</summary>
+            <div class="plus-int">
+              <div class="grille2">
+                <div class="champ"><label for="c-civ">Civilité</label>
+                  <select id="c-civ"><option>Madame</option><option>Monsieur</option></select></div>
+                <div class="champ"><label for="c-nom">Prénom et nom</label><input id="c-nom" type="text" autocomplete="off"></div>
+              </div>
+              <div class="grille2">
+                <div class="champ"><label for="c-debut">Période du</label><input id="c-debut" type="date"></div>
+                <div class="champ"><label for="c-fin">au</label><input id="c-fin" type="date"></div>
+              </div>
+              <div class="grille2">
+                <div class="champ"><label for="c-lieu">Fait à</label><input id="c-lieu" type="text" autocomplete="off"></div>
+                <div class="champ"><label for="c-datequittance">Date de la quittance</label><input id="c-datequittance" type="date"></div>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="carte" id="etape-4">
+        <h2 class="etape"><span class="num">4</span>Envoyer</h2>
+        <p class="attente" id="attente-4">Choisissez d'abord un locataire (étape 1).</p>
+        <div id="envoi" hidden>
+          <div class="actions">
+            <button class="btn btn-principal" id="btn-envoyer">✉️&nbsp; Envoyer par mail</button>
+            <p class="aide-mail" id="aide-mail"></p>
+            <button class="btn btn-secondaire" id="btn-telecharger">Télécharger le PDF</button>
+          </div>
+          <div class="message" id="message-creer" role="status" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <details class="carte tous" id="tous">
+        <summary>Envoyer les quittances de tous les locataires, l'une après l'autre</summary>
+        <div class="tous-int">
+          <p id="tous-intro"></p>
+          <div id="tous-liste"></div>
+          <div class="message" id="message-tous" role="status" aria-live="polite"></div>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ================= ONGLET LOCATAIRES ================= -->
+  <section id="onglet-locataires">
+    <div class="carte info-paul">
+      <p class="grand"><strong>La liste est tenue à jour par Paul. Si un locataire change, prévenez-le.</strong></p>
+      <button class="btn btn-secondaire" id="btn-actualiser">Actualiser la liste</button>
+      <p class="etat-liste" id="etat-liste-2"></p>
+      <div class="message" id="message-locataires" role="status" aria-live="polite"></div>
+    </div>
+    <div id="liste-locataires"></div>
+    <p class="note-paul" id="note-paul" hidden></p>
+  </section>
+
+  <!-- ================= ONGLET ARCHIVES ================= -->
+  <section id="onglet-archives">
+    <p class="intro">Toutes les quittances créées, rangées par logement puis par locataire.</p>
+    <div class="message" id="message-archives" role="status" aria-live="polite"></div>
+    <div id="liste-archives"></div>
+
+    <div class="carte">
+      <h2 class="etape">Sauvegarde</h2>
+      <p>Les archives sont gardées <strong>uniquement sur cet iPad</strong>. De temps en temps, enregistrez une sauvegarde
+        (par exemple dans iCloud Drive).</p>
+      <div class="grille2 espace-haut">
+        <button class="btn btn-secondaire" id="btn-sauvegarder">Enregistrer une sauvegarde</button>
+        <button class="btn btn-secondaire" id="btn-restaurer">Restaurer une sauvegarde</button>
+      </div>
+      <input type="file" id="fichier-restaurer" accept="application/json,.json" hidden>
+      <div class="message" id="message-sauvegarde" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <p class="version" id="version"></p>
+</main>
+
+<!-- Fenêtre de confirmation -->
+<div class="voile" id="voile" hidden>
+  <div class="fenetre" role="dialog" aria-modal="true" aria-labelledby="fenetre-texte">
+    <p id="fenetre-texte"></p>
+    <div class="fenetre-btns">
+      <button class="btn btn-secondaire" id="fenetre-non">Annuler</button>
+      <button class="btn btn-danger-plein" id="fenetre-oui">Oui</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

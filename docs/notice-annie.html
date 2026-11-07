@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Quittances — mode d'emploi</title>
+<style>
+  @page { size: A4; margin: 14mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #111; font-size: 15.5pt; line-height: 1.35; margin: 0; }
+  h1 { font-size: 25pt; margin: 0 0 2mm; color: #1e3a5f; }
+  .sous { font-size: 14pt; margin: 0 0 6mm; color: #333; }
+  h2 { font-size: 18.5pt; margin: 6mm 0 2.5mm; color: #1e3a5f; display: flex; align-items: center; gap: 3mm; }
+  h2 .n { display: inline-flex; width: 10mm; height: 10mm; border-radius: 50%; background: #1e3a5f; color: #fff;
+          align-items: center; justify-content: center; font-size: 15pt; flex: none; }
+  ol, ul { margin: 0; padding-left: 9mm; }
+  li { margin-bottom: 1.8mm; }
+  .icone { display: flex; align-items: center; gap: 5mm; }
+  .icone img { width: 20mm; height: 20mm; border-radius: 4.5mm; flex: none; }
+  .bouton { display: inline-block; border: 2px solid #1e3a5f; border-radius: 3mm; padding: 0 2.5mm; font-weight: 700; color: #1e3a5f; white-space: nowrap; }
+  .bouton.plein { background: #1e3a5f; color: #fff; }
+  .encadre { border: 2px solid #c9c3b4; background: #f7f5ef; border-radius: 4mm; padding: 3.5mm 5mm; margin-top: 6mm; }
+  .encadre p { margin: 0 0 1.5mm; }
+  .tel { margin-top: 2mm; font-size: 17pt; }
+</style>
+</head>
+<body>
+  <h1>Quittances de loyer</h1>
+  <p class="sous">Mode d'emploi — à garder près de l'iPad</p>
+
+  <h2><span class="n">1</span>Ouvrir l'application</h2>
+  <div class="icone">
+    <img src="../icons/icon-192.png" alt="">
+    <div>Sur l'écran d'accueil de l'iPad, touchez l'icône <strong>« Quittances »</strong>.<br>
+      <strong>Ne passez pas par Safari.</strong> Si une bande jaune apparaît en haut, fermez Safari et touchez l'icône.</div>
+  </div>
+
+  <h2><span class="n">2</span>Faire et envoyer une quittance</h2>
+  <ol>
+    <li>Touchez le <strong>nom du locataire</strong>.</li>
+    <li>Vérifiez le <strong>mois</strong>. Le mois en cours est déjà choisi.</li>
+    <li>Vérifiez les <strong>montants</strong>. Vous pouvez les changer : cela ne vaut que pour cette quittance.</li>
+    <li>Touchez <span class="bouton plein">✉ Envoyer par mail</span>, puis touchez <strong>Mail</strong>.</li>
+    <li>Dans la case <strong>« À : »</strong>, tapez l'adresse du locataire. Elle est écrite sous le bouton bleu.</li>
+    <li>Touchez la <strong>flèche bleue</strong> en haut à droite pour envoyer. C'est fini.</li>
+  </ol>
+  <p style="margin:2mm 0 0">La quittance est rangée toute seule dans les <strong>Archives</strong>.</p>
+
+  <h2><span class="n">3</span>Retrouver une ancienne quittance</h2>
+  <ol>
+    <li>En haut, touchez <span class="bouton">Archives</span>.</li>
+    <li>Touchez le <strong>nom du locataire</strong> : ses quittances s'affichent, la plus récente en premier.</li>
+    <li>Touchez <span class="bouton">Envoyer</span> pour l'envoyer à nouveau, ou <span class="bouton">Télécharger</span>.</li>
+  </ol>
+
+  <div class="encadre">
+    <p><strong>« Pas de connexion internet »</strong> : vérifiez que le wifi est allumé. Vous pouvez quand même faire les quittances.</p>
+    <p><strong>Un locataire manque ou un montant a changé</strong> : c'est Paul qui tient la liste. Prévenez-le.</p>
+    <p class="tel"><strong>Paul</strong> : ________________________</p>
+  </div>
+</body>
+</html>
