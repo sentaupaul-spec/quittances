@@ -31,7 +31,7 @@ export const SHEET_CSV_URL =
 export const LIEU_PAR_DEFAUT = "Montpellier";
 
 // Affichée en bas de l'app : permet de vérifier que l'iPad a bien la dernière version.
-export const APP_VERSION = "1.1.0";
+export const APP_VERSION = "1.2.0";
 
 export const SIGNATURE_URL = "assets/signature.png";
 export const SIGNATURE_TAILLE_MM = { largeur: 60, hauteur: 38 };

@@ -4,6 +4,7 @@ import { formatEuros, formatSaisie, lireMontant } from "./montant.js";
 import { telechargerLocataires } from "./sheet.js";
 import { chargerSignature, genererFichier, dateFr } from "./pdf.js";
 import { reglages, demanderPersistance } from "./storage.js";
+import { texteMail, titreMail } from "./mail.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -252,11 +253,6 @@ const peutPartager = (fichier) => {
   catch (e) { return false; }
 };
 
-function texteMail(q) {
-  return `Bonjour ${q.civ} ${q.nom},\n\nVeuillez trouver ci-joint votre quittance de loyer pour le mois de `
-    + `${MOIS[q.moisIdx].toLowerCase()} ${q.annee}.\n\nBien cordialement,\n${q.bailleur.nom}`;
-}
-const titreMail = (q) => `Quittance de loyer — ${MOIS[q.moisIdx]} ${q.annee}`;
 
 function telechargerBlob(blob, nom) {
   const url = URL.createObjectURL(blob);

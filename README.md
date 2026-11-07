@@ -77,6 +77,7 @@ js/sheet.js              lecture du Google Sheet (CSV) → locataires actifs
 js/montant.js            montants en lettres, format « 1 280,50 € », lecture des montants
 js/pdf.js                génération du PDF (jsPDF, synchrone), nom du fichier
 js/storage.js            IndexedDB : dernière liste de locataires connue (hors ligne)
+js/mail.js               ⭐ texte du mail (objet, « Bonjour Monsieur Nom », signature)
 js/app.js                interface
 sw.js                    service worker (hors ligne + mises à jour automatiques)
 manifest.webmanifest     PWA (nom court « Quittances »)

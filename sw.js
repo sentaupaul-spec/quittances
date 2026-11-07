@@ -16,6 +16,7 @@ const FICHIERS = [
   "js/sheet.js",
   "js/pdf.js",
   "js/storage.js",
+  "js/mail.js",
   "vendor/jspdf.umd.min.js",
   "assets/signature.png",
   "manifest.webmanifest",

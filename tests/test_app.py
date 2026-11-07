@@ -120,8 +120,9 @@ def test_creation_et_partage(navigateur, serveur):
     assert len(p) == 1
     assert p[0]["nom"] == "Quittance_Novembre_2026_Julie_Martin.pdf"
     assert p[0]["type"] == "application/pdf"
-    assert p[0]["texte"] == ("Bonjour Madame Julie Martin,\n\nVeuillez trouver ci-joint votre quittance de loyer "
-                             "pour le mois de novembre 2026.\n\nBien cordialement,\nAnnie Cresp")
+    assert p[0]["titre"] == "Quittance de loyer — Novembre 2026"
+    assert p[0]["texte"] == ("Bonjour Madame Martin,\n\nVoici votre quittance de loyer du mois de novembre 2026."
+                             "\n\nJe vous en souhaite bonne réception.\n\nCordialement,\nAnnie Cresp")
     pdf = base64.b64decode(p[0]["b64"])
     texte = fitz.open(stream=pdf, filetype="pdf")[0].get_text()
     assert "cinq cent quatre-vingt-dix euros" not in texte
