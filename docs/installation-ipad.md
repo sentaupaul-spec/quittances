@@ -2,7 +2,7 @@
 
 À faire une fois, sur place (ou en la guidant au téléphone). Compter 15 minutes.
 
-**Avant de partir :** le Sheet est partagé et le lien `https://<ton-compte>.github.io/quittances/` fonctionne
+**Avant de partir :** le Sheet est partagé et le lien `https://sentaupaul-spec.github.io/quittances/` fonctionne
 sur ton ordinateur (la liste des locataires s'affiche). Imprime [`notice-annie.pdf`](notice-annie.pdf).
 
 ## Sur l'iPad
@@ -12,7 +12,7 @@ sur ton ordinateur (la liste des locataires s'affiche). Imprime [`notice-annie.p
 - [ ] **Mail fonctionne** : ouvrir l'app Mail, vérifier que son compte envoie bien (s'envoyer un mail).
 - [ ] **Supprimer l'ancien raccourci mort** : appui long sur l'ancienne icône › « Supprimer le signet »
       (ou « Supprimer l'app » › « Supprimer de l'écran d'accueil »).
-- [ ] **Ouvrir le nouveau lien dans Safari** : taper `https://<ton-compte>.github.io/quittances/`.
+- [ ] **Ouvrir le nouveau lien dans Safari** : taper `https://sentaupaul-spec.github.io/quittances/`.
       Le bandeau jaune « Vous êtes dans Safari » est normal à cette étape.
 - [ ] **Ajouter à l'écran d'accueil** : bouton Partager (carré avec une flèche vers le haut, en haut à droite)
       › « Sur l'écran d'accueil » › vérifier le nom **Quittances** › « Ajouter ».

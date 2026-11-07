@@ -23,7 +23,7 @@ copier le lien, puis le coller dans `js/config.js` à la place de `SHEET_CSV_URL
 
 ## 2. GitHub Pages
 
-Le dépôt est publié dans `https://github.com/<ton-compte>/quittances`. Si GitHub Pages n'est pas déjà activé :
+Le dépôt est publié dans `https://github.com/sentaupaul-spec/quittances`. Si GitHub Pages n'est pas déjà activé :
 dépôt › **Settings** › **Pages** › *Build and deployment* › Source **« Deploy from a branch »** › Branch **`main`**,
 dossier **`/ (root)`** › **Save**. Le lien apparaît en haut de la même page après 1 à 2 minutes.
 

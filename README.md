@@ -3,7 +3,7 @@
 Application web (PWA) pour iPad : Annie choisit un locataire et un mois, puis envoie la quittance
 PDF par Mail depuis **son** compte. Tout est statique (GitHub Pages), sans serveur, sans compte, gratuit.
 
-- **Lien de l'app :** `https://<ton-compte>.github.io/quittances/`
+- **Lien de l'app :** `https://sentaupaul-spec.github.io/quittances/`
 - **Liste des locataires :** [Google Sheet](https://docs.google.com/spreadsheets/d/1QIWrw0728Bn01xriQSWWJtB1HxWUV_yNL8B-QrKn230/edit)
 - Notice imprimable pour Annie : [`docs/notice-annie.pdf`](docs/notice-annie.pdf)
 - Installation sur son iPad : [`docs/installation-ipad.md`](docs/installation-ipad.md)
