@@ -42,7 +42,7 @@ const COLONNES = {
   actif: ["actif", "active"],
 };
 
-/** Clé stable d'un locataire (sert à ranger les archives). */
+/** Clé stable d'un locataire. */
 export function cleLocataire(appt, nom) {
   return appt + "|" + normaliser(nom);
 }

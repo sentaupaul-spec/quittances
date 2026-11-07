@@ -32,7 +32,7 @@ strong, b { font-weight: 700; }
 .haut-int { max-width: 860px; margin: 0 auto; }
 .marque { font-size: 18px; color: var(--doux); margin-bottom: 10px; }
 .marque b { color: var(--encre); font-size: 23px; display: block; }
-.onglets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: #e4e0d6; padding: 5px; border-radius: 14px; }
+.onglets { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: #e4e0d6; padding: 5px; border-radius: 14px; }
 .onglet {
   border: 0; background: transparent; font: inherit; font-size: 20px; font-weight: 700; color: var(--doux);
   min-height: 56px; border-radius: 10px; cursor: pointer;
@@ -117,8 +117,6 @@ details.plus[open] summary::before, details.tous[open] summary::before { content
 .btn:disabled { opacity: .55; cursor: default; }
 .btn-principal { background: var(--accent); color: #fff; min-height: 72px; font-size: 23px; }
 .btn-secondaire { background: #fff; color: var(--accent); border: 2px solid var(--accent); }
-.btn-danger { background: #fff; color: var(--danger); border: 2px solid var(--danger); }
-.btn-danger-plein { background: var(--danger); color: #fff; }
 .btn-petit { width: auto; min-height: 56px; font-size: 19px; padding: 10px 18px; }
 .actions { display: grid; gap: 12px; }
 .aide-mail { font-size: 19px; color: var(--encre); background: #f1efe9; border-radius: 10px; padding: 12px 14px; }
@@ -145,24 +143,6 @@ details.plus[open] summary::before, details.tous[open] summary::before { content
 .locataire-detail { font-size: 19px; color: var(--doux); }
 .vide { color: var(--doux); font-size: 19px; padding: 12px 0; }
 
-/* Archives */
-.arch-locataire { border-top: 1px solid var(--trait); margin-top: 8px; }
-.arch-locataire > summary {
-  cursor: pointer; font-weight: 700; font-size: 20px; min-height: 60px; list-style: none;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-}
-.arch-locataire > summary::before { content: "▸"; color: var(--accent); margin-right: 4px; }
-.arch-locataire[open] > summary::before { content: "▾"; }
-.arch-locataire > summary .nom { flex: 1; }
-.arch-locataire > summary .compte { font-weight: 500; color: var(--doux); font-size: 18px; }
-.arch-ligne { padding: 14px 0; border-top: 1px dashed var(--trait); }
-.arch-mois { font-weight: 700; font-size: 20px; }
-.arch-detail { font-size: 18px; color: var(--doux); margin-bottom: 10px; }
-.arch-btns { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
-@media (max-width: 560px) { .arch-btns { grid-template-columns: 1fr; } }
-.arch-btns .btn { min-height: 56px; font-size: 19px; padding: 8px 10px; }
-.ancien { font-size: 18px; font-weight: 600; color: var(--doux); background: #ecebe6; border-radius: 999px; padding: 2px 10px; }
-
 /* Tous les locataires */
 details.tous { padding: 14px 22px; }
 .tous-int { padding-top: 10px; }
@@ -173,10 +153,5 @@ details.tous { padding: 14px 22px; }
 .tous-ligne .fait { color: var(--ok); font-weight: 700; font-size: 18px; display: block; }
 .tous-ligne .btn { width: auto; min-width: 180px; }
 
-/* Fenêtre de confirmation */
-.voile { position: fixed; inset: 0; background: rgba(20,20,20,.5); z-index: 30; display: flex; align-items: center; justify-content: center; padding: 20px; }
-.fenetre { background: #fff; border-radius: 18px; width: 100%; max-width: 560px; padding: 26px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
-.fenetre p { font-size: 21px; margin-bottom: 22px; white-space: pre-line; }
-.fenetre-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 .version { text-align: center; color: var(--doux); font-size: 18px; margin-top: 24px; }

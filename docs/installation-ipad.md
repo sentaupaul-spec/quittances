@@ -20,7 +20,7 @@ sur ton ordinateur (la liste des locataires s'affiche). Imprime [`notice-annie.p
 - [ ] **Fermer Safari**, puis ouvrir l'app **depuis l'icône**. Vérifier :
   - pas de bandeau jaune ;
   - « Liste mise à jour le … » en haut, et les locataires groupés par logement ;
-  - « Version 1.0.1 » (ou plus) tout en bas.
+  - « Version 1.1.0 » (ou plus) tout en bas.
 - [ ] **Placer l'icône** sur le premier écran, bien visible (dans le Dock si possible).
 
 ## Tests
@@ -30,11 +30,8 @@ sur ton ordinateur (la liste des locataires s'affiche). Imprime [`notice-annie.p
       1 page, signature et tampon visibles, montant en lettres correct.
 - [ ] Le texte du mail est bien pré-rempli (« Bonjour Madame …, Veuillez trouver ci-joint… »).
 - [ ] **Télécharger le PDF** : le fichier arrive dans l'app Fichiers › Téléchargements.
-- [ ] **Archives** : la quittance de test y est. Touchez « Supprimer » › « Oui, supprimer » pour l'effacer
-      (sauf si elle était réelle).
 - [ ] **Hors ligne** : activer le mode Avion › rouvrir l'app › « Pas de connexion internet : liste du … »
       s'affiche et on peut quand même télécharger une quittance. **Désactiver le mode Avion.**
-- [ ] **Sauvegarde** : Archives › « Enregistrer une sauvegarde » › « Enregistrer dans Fichiers » › iCloud Drive.
 - [ ] Faire faire **une quittance complète par Annie elle-même**, avec la notice, sans l'aider.
 
 ## Pour finir

@@ -32,7 +32,6 @@
     <nav class="onglets" role="tablist">
       <button class="onglet actif" data-onglet="creer" role="tab">Créer</button>
       <button class="onglet" data-onglet="locataires" role="tab">Locataires</button>
-      <button class="onglet" data-onglet="archives" role="tab">Archives</button>
     </nav>
   </div>
 </header>
@@ -131,37 +130,9 @@
     <p class="note-paul" id="note-paul" hidden></p>
   </section>
 
-  <!-- ================= ONGLET ARCHIVES ================= -->
-  <section id="onglet-archives">
-    <p class="intro">Toutes les quittances créées, rangées par logement puis par locataire.</p>
-    <div class="message" id="message-archives" role="status" aria-live="polite"></div>
-    <div id="liste-archives"></div>
-
-    <div class="carte">
-      <h2 class="etape">Sauvegarde</h2>
-      <p>Les archives sont gardées <strong>uniquement sur cet iPad</strong>. De temps en temps, enregistrez une sauvegarde
-        (par exemple dans iCloud Drive).</p>
-      <div class="grille2 espace-haut">
-        <button class="btn btn-secondaire" id="btn-sauvegarder">Enregistrer une sauvegarde</button>
-        <button class="btn btn-secondaire" id="btn-restaurer">Restaurer une sauvegarde</button>
-      </div>
-      <input type="file" id="fichier-restaurer" accept="application/json,.json" hidden>
-      <div class="message" id="message-sauvegarde" role="status" aria-live="polite"></div>
-    </div>
-  </section>
 
   <p class="version" id="version"></p>
 </main>
 
-<!-- Fenêtre de confirmation -->
-<div class="voile" id="voile" hidden>
-  <div class="fenetre" role="dialog" aria-modal="true" aria-labelledby="fenetre-texte">
-    <p id="fenetre-texte"></p>
-    <div class="fenetre-btns">
-      <button class="btn btn-secondaire" id="fenetre-non">Annuler</button>
-      <button class="btn btn-danger-plein" id="fenetre-oui">Oui</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>

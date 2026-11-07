@@ -3,13 +3,12 @@ import { BAILLEUR, LOGEMENTS, MOIS, LIEU_PAR_DEFAUT, SIGNATURE_URL, APP_VERSION 
 import { formatEuros, formatSaisie, lireMontant } from "./montant.js";
 import { telechargerLocataires } from "./sheet.js";
 import { chargerSignature, genererFichier, dateFr } from "./pdf.js";
-import { archives, reglages, idArchive, demanderPersistance, exporterSauvegarde, importerSauvegarde } from "./storage.js";
+import { reglages, demanderPersistance } from "./storage.js";
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const pad = (n) => String(n).padStart(2, "0");
 const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const nomLogement = (k) => `${k} — ${LOGEMENTS[k].adresse}`;
 
 const etat = {
   locataires: [],
@@ -18,7 +17,7 @@ const etat = {
   horsLigne: false,
   enCours: true,      // première vérification de la liste en cours
   choisi: null,       // clé du locataire choisi
-  archives: [],
+  envoyes: new Set(), // « clé|année-mois » envoyées depuis l'ouverture de l'app (liste « tous les locataires »)
 };
 
 /* ---------------------------------------------------------------- Messages */
@@ -29,26 +28,10 @@ function message(id, type, texte) {
 }
 function effacerMessage(id) { message(id, "", ""); }
 
-let resoudreFenetre = null;
-function confirmer(texte, oui = "Oui", non = "Annuler") {
-  $("fenetre-texte").textContent = texte;
-  $("fenetre-oui").textContent = oui;
-  $("fenetre-non").textContent = non;
-  $("voile").hidden = false;
-  return new Promise((ok) => { resoudreFenetre = ok; });
-}
-function fermerFenetre(reponse) {
-  $("voile").hidden = true;
-  if (resoudreFenetre) { resoudreFenetre(reponse); resoudreFenetre = null; }
-}
-$("fenetre-oui").onclick = () => fermerFenetre(true);
-$("fenetre-non").onclick = () => fermerFenetre(false);
-
 /* ---------------------------------------------------------------- Onglets */
 function afficherOnglet(nom) {
   document.querySelectorAll(".onglet").forEach((b) => b.classList.toggle("actif", b.dataset.onglet === nom));
   document.querySelectorAll("main > section").forEach((s) => s.classList.toggle("actif", s.id === "onglet-" + nom));
-  if (nom === "archives") afficherArchives();
   if (nom === "locataires") afficherLocataires();
   window.scrollTo(0, 0);
 }
@@ -105,16 +88,16 @@ async function chargerListe({ manuel = false } = {}) {
     const type = e.type || "reseau";
     etat.horsLigne = true;
     etat.enCours = false;
+    const texteManuel = MSG_ERREUR[type].replace("« Réessayer »", "« Actualiser la liste »");
     if (etat.locataires.length) {
       afficherTout();
-      if (manuel) message("message-locataires", "erreur", MSG_ERREUR[type].replace("« Réessayer »", "« Actualiser la liste »"));
     } else {
       $("chargement").hidden = true;
       $("formulaire").hidden = true;
       $("sans-liste").hidden = false;
       $("sans-liste-texte").textContent = MSG_ERREUR[type];
-      if (manuel) message("message-locataires", "erreur", MSG_ERREUR[type].replace("« Réessayer »", "« Actualiser la liste »"));
     }
+    if (manuel) message("message-locataires", "erreur", texteManuel);
     return false;
   }
 }
@@ -176,6 +159,7 @@ function initMois() {
   $("c-annee").value = String(y);
 }
 const moisChoisi = () => ({ moisIdx: +$("c-mois").value, annee: +$("c-annee").value });
+const cleEnvoi = (cle, annee, moisIdx) => `${cle}|${annee}-${pad(moisIdx + 1)}`;
 
 function remplirFormulaire() {
   const l = locataireChoisi();
@@ -206,11 +190,10 @@ function majTotal() {
 $("c-mois").onchange = $("c-annee").onchange = () => { remplirFormulaire(); afficherTous(); };
 $("c-loyer").oninput = $("c-charges").oninput = majTotal;
 
-/** Instantané complet de la quittance (tout ce qu'il faut pour régénérer le PDF à l'identique). */
-function instantane(l, champs) {
+/** Toutes les informations de la quittance. */
+function quittance(l, champs) {
   return {
-    version: 1,
-    id: idArchive(l.cle, champs.annee, champs.moisIdx),
+    id: cleEnvoi(l.cle, champs.annee, champs.moisIdx),
     cle: l.cle,
     appt: l.appt,
     email: l.email || "",
@@ -256,7 +239,7 @@ function lireFormulaire() {
   if (!debut || !fin || debut > fin) return erreur("c-debut", "Vérifiez la période (dans « Autres informations ») : la date de début doit être avant la date de fin.");
   const dateQuittance = $("c-datequittance").value;
   if (!dateQuittance) return erreur("c-datequittance", "Indiquez la date de la quittance (dans « Autres informations »).");
-  return instantane(l, {
+  return quittance(l, {
     moisIdx, annee, loyer, charges, datePaiement, debut, fin, nom, dateQuittance,
     civ: $("c-civ").value,
     lieu: $("c-lieu").value.trim() || LIEU_PAR_DEFAUT,
@@ -307,13 +290,13 @@ function livrer(q, action) {
 
 const MSG_LIVRAISON = {
   envoyer: {
-    partage: "C'est fait. La quittance est aussi rangée dans les Archives.",
-    annule: "Envoi annulé. La quittance est quand même rangée dans les Archives. Appuyez à nouveau sur « Envoyer par mail » pour recommencer.",
-    echec: "L'envoi n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer par mail ». La quittance est rangée dans les Archives.",
-    telecharge: "Le PDF est téléchargé et votre messagerie s'ouvre : joignez le fichier au message. La quittance est rangée dans les Archives.",
+    partage: "C'est fait.",
+    annule: "Envoi annulé. Appuyez à nouveau sur « Envoyer par mail » pour recommencer.",
+    echec: "L'envoi n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer par mail ».",
+    telecharge: "Le PDF est téléchargé et votre messagerie s'ouvre : joignez le fichier au message.",
   },
   telecharger: {
-    telecharge: "PDF téléchargé. La quittance est aussi rangée dans les Archives.",
+    telecharge: "PDF téléchargé.",
   },
 };
 
@@ -328,14 +311,11 @@ function creer(action) {
     console.error(e);
     return;
   }
-  const archivage = archives.enregistrer(q).then(() => true).catch((e) => { console.error(e); return false; });
   message("message-creer", "info", action === "envoyer" ? "Ouverture de l'envoi…" : "Préparation du PDF…");
-  Promise.all([promesse, archivage]).then(([r, archive]) => {
-    let texte = MSG_LIVRAISON[action][r] || MSG_LIVRAISON[action].telecharge;
-    if (!archive) texte = texte.replace(/ ?La quittance (est|est aussi|est quand même) rangée dans les Archives\./, "")
-      + " Attention : elle n'a pas pu être rangée dans les Archives.";
-    message("message-creer", r === "echec" || !archive ? "erreur" : r === "annule" ? "info" : "ok", texte);
-    rafraichirArchives();
+  promesse.then((r) => {
+    if (action === "envoyer" && (r === "partage" || r === "telecharge")) { etat.envoyes.add(q.id); afficherTous(); }
+    message("message-creer", r === "echec" ? "erreur" : r === "annule" ? "info" : "ok",
+      MSG_LIVRAISON[action][r] || MSG_LIVRAISON[action].telecharge);
   });
 }
 $("btn-envoyer").onclick = () => creer("envoyer");
@@ -346,15 +326,13 @@ function afficherTous() {
   const { moisIdx, annee } = moisChoisi();
   $("tous-intro").innerHTML = `Pour <strong>${MOIS[moisIdx]} ${annee}</strong> (le mois choisi à l'étape 2), avec les montants de la liste `
     + `et un paiement le 1er du mois. Appuyez sur « Envoyer » pour chaque locataire, l'un après l'autre.`;
-  const faits = new Map(etat.archives.map((q) => [q.id, q]));
   $("tous-liste").innerHTML = etat.locataires.map((l) => {
-    const id = idArchive(l.cle, annee, moisIdx);
-    const deja = faits.get(id);
+    const fait = etat.envoyes.has(cleEnvoi(l.cle, annee, moisIdx));
     return `<div class="tous-ligne">
       <div><span class="tag" data-k="${l.appt}">${l.appt}</span> <span class="qui">${esc(l.civ)} ${esc(l.nom)}</span>
         <span class="combien">${formatEuros(l.loyer + l.charges)}</span>
-        ${deja ? `<span class="fait">✓ Quittance faite le ${dateFr(deja.creeLe.slice(0, 10))}</span>` : ""}</div>
-      <button class="btn ${deja ? "btn-secondaire" : "btn-principal"} btn-petit" data-cle="${esc(l.cle)}">${deja ? "Renvoyer" : "Envoyer"}</button>
+        ${fait ? `<span class="fait">✓ Envoyée</span>` : ""}</div>
+      <button class="btn ${fait ? "btn-secondaire" : "btn-principal"} btn-petit" data-cle="${esc(l.cle)}">${fait ? "Renvoyer" : "Envoyer"}</button>
     </div>`;
   }).join("");
   $("tous-liste").querySelectorAll("button[data-cle]").forEach((b) => { b.onclick = () => envoyerUn(b.dataset.cle); });
@@ -364,7 +342,7 @@ function envoyerUn(cle) {
   const l = etat.locataires.find((x) => x.cle === cle);
   if (!l) return;
   const { moisIdx, annee } = moisChoisi();
-  const q = instantane(l, {
+  const q = quittance(l, {
     moisIdx, annee, loyer: l.loyer, charges: l.charges, civ: l.civ, nom: l.nom, lieu: LIEU_PAR_DEFAUT,
     datePaiement: iso(new Date(annee, moisIdx, 1)),
     debut: iso(new Date(annee, moisIdx, 1)),
@@ -376,13 +354,15 @@ function envoyerUn(cle) {
     message("message-tous", "erreur", "La quittance n'a pas pu être préparée. Fermez l'application et rouvrez-la. Si cela continue, prévenez Paul.");
     return;
   }
-  const archivage = archives.enregistrer(q).then(() => true).catch(() => false);
-  Promise.all([promesse, archivage]).then(([r, archive]) => {
+  promesse.then((r) => {
     const qui = `${l.civ} ${l.nom}`;
     if (r === "annule") message("message-tous", "info", `Envoi à ${qui} annulé. Vous pouvez recommencer.`);
     else if (r === "echec") message("message-tous", "erreur", `L'envoi à ${qui} n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer ».`);
-    else message("message-tous", archive ? "ok" : "erreur", `Quittance de ${qui} : c'est fait.` + (archive ? " Elle est rangée dans les Archives." : " Attention : elle n'a pas pu être rangée dans les Archives."));
-    rafraichirArchives();
+    else {
+      etat.envoyes.add(q.id);
+      message("message-tous", "ok", `Quittance de ${qui} : c'est fait.`);
+      afficherTous();
+    }
   });
 }
 
@@ -418,144 +398,6 @@ $("btn-reessayer").onclick = async () => {
   $("btn-reessayer").disabled = false;
 };
 
-/* ---------------------------------------------------------------- Onglet Archives */
-async function rafraichirArchives() {
-  try { etat.archives = await archives.toutes(); } catch (e) { etat.archives = []; }
-  afficherTous();
-  if ($("onglet-archives").classList.contains("actif")) afficherArchives();
-}
-
-const ouverts = new Set();
-function afficherArchives() {
-  const liste = etat.archives;
-  if (!liste.length) {
-    $("liste-archives").innerHTML = `<div class="carte"><p class="vide">Aucune quittance pour l'instant. Elles apparaîtront ici dès la première création.</p></div>`;
-    return;
-  }
-  const actifs = new Set(etat.locataires.map((l) => l.cle));
-  const codes = [...new Set([...Object.keys(LOGEMENTS), ...liste.map((q) => q.appt)])];
-  $("liste-archives").innerHTML = codes.map((k) => {
-    const items = liste.filter((q) => q.appt === k);
-    if (!items.length) return "";
-    const groupes = new Map();
-    items.forEach((q) => { if (!groupes.has(q.cle)) groupes.set(q.cle, []); groupes.get(q.cle).push(q); });
-    const blocs = [...groupes.entries()].map(([cle, qs]) => {
-      qs.sort((a, b) => (b.annee * 12 + b.moisIdx) - (a.annee * 12 + a.moisIdx));
-      return { cle, qs, nom: `${qs[0].civ} ${qs[0].nom}` };
-    }).sort((a, b) => a.nom.localeCompare(b.nom, "fr")).map(({ cle, qs, nom }) => `
-      <details class="arch-locataire" data-cle="${esc(cle)}"${ouverts.has(cle) ? " open" : ""}>
-        <summary><span class="nom">${esc(nom)}</span>
-          ${actifs.has(cle) || etat.horsLigne ? "" : `<span class="ancien">ancien locataire</span>`}
-          <span class="compte">${qs.length} quittance${qs.length > 1 ? "s" : ""}</span></summary>
-        ${qs.map((q) => `
-          <div class="arch-ligne">
-            <div class="arch-mois">${MOIS[q.moisIdx]} ${q.annee}</div>
-            <div class="arch-detail">${formatEuros(q.loyer + q.charges)} · payé le ${dateFr(q.datePaiement)} · faite le ${dateFr(q.dateQuittance)}</div>
-            <div class="arch-btns">
-              <button class="btn btn-secondaire" data-action="telecharger" data-id="${esc(q.id)}">Télécharger</button>
-              <button class="btn btn-secondaire" data-action="envoyer" data-id="${esc(q.id)}">Envoyer</button>
-              <button class="btn btn-danger" data-action="supprimer" data-id="${esc(q.id)}">Supprimer</button>
-            </div>
-          </div>`).join("")}
-      </details>`).join("");
-    const lg = LOGEMENTS[k];
-    return `<div class="carte logement" data-k="${esc(k)}">
-      <div class="logement-tete"><span class="tag" data-k="${esc(k)}">${esc(k)}</span><span class="logement-adresse">${esc(lg ? lg.adresse : items[0].logement.adresse)}</span></div>
-      ${blocs}
-    </div>`;
-  }).join("");
-  $("liste-archives").querySelectorAll("details.arch-locataire").forEach((d) => {
-    d.ontoggle = () => { if (d.open) ouverts.add(d.dataset.cle); else ouverts.delete(d.dataset.cle); };
-  });
-  $("liste-archives").querySelectorAll("button[data-action]").forEach((b) => {
-    b.onclick = () => actionArchive(b.dataset.action, b.dataset.id);
-  });
-}
-
-function actionArchive(action, id) {
-  const q = etat.archives.find((x) => x.id === id);
-  if (!q) return;
-  const quoi = `${MOIS[q.moisIdx]} ${q.annee} de ${q.civ} ${q.nom}`;
-  if (action === "supprimer") {
-    confirmer(`Supprimer la quittance de ${quoi} ?\n\nElle sera effacée des Archives.`, "Oui, supprimer", "Non, garder").then(async (oui) => {
-      if (!oui) return;
-      try {
-        await archives.supprimer(id);
-        message("message-archives", "ok", `La quittance de ${quoi} est supprimée.`);
-      } catch (e) {
-        message("message-archives", "erreur", "La quittance n'a pas pu être supprimée. Fermez l'application, rouvrez-la et recommencez.");
-      }
-      await rafraichirArchives();
-      afficherArchives();
-    });
-    return;
-  }
-  let promesse;
-  try { promesse = livrer(q, action); } catch (e) {
-    message("message-archives", "erreur", "Le PDF n'a pas pu être préparé. Fermez l'application et rouvrez-la. Si cela continue, prévenez Paul.");
-    return;
-  }
-  promesse.then((r) => {
-    const t = {
-      partage: `Quittance de ${quoi} : c'est fait.`,
-      annule: "Envoi annulé.",
-      echec: "L'envoi n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer ».",
-      telecharge: action === "envoyer"
-        ? "Le PDF est téléchargé et votre messagerie s'ouvre : joignez le fichier au message."
-        : `PDF de ${quoi} téléchargé.`,
-    }[r];
-    message("message-archives", r === "echec" ? "erreur" : r === "annule" ? "info" : "ok", t);
-  });
-}
-
-/* ---------------------------------------------------------------- Sauvegarde */
-$("btn-sauvegarder").onclick = async () => {
-  try {
-    const donnees = await exporterSauvegarde();
-    const nom = `Sauvegarde_quittances_${iso(new Date())}.json`;
-    const blob = new Blob([JSON.stringify(donnees, null, 2)], { type: "application/json" });
-    const fichier = new File([blob], nom, { type: "application/json" });
-    // Sur iPad : menu Partager → « Enregistrer dans Fichiers » (iCloud Drive).
-    if (peutPartager(fichier)) {
-      try {
-        await navigator.share({ files: [fichier], title: "Sauvegarde des quittances" });
-        message("message-sauvegarde", "ok", `Sauvegarde enregistrée (${donnees.quittances.length} quittance${donnees.quittances.length > 1 ? "s" : ""}).`);
-      } catch (e) {
-        if (e && e.name === "AbortError") message("message-sauvegarde", "info", "Sauvegarde annulée.");
-        else { telechargerBlob(blob, nom); message("message-sauvegarde", "ok", "Sauvegarde téléchargée."); }
-      }
-    } else {
-      telechargerBlob(blob, nom);
-      message("message-sauvegarde", "ok", `Sauvegarde téléchargée (${donnees.quittances.length} quittance${donnees.quittances.length > 1 ? "s" : ""}).`);
-    }
-  } catch (e) {
-    message("message-sauvegarde", "erreur", "La sauvegarde n'a pas pu être faite. Prévenez Paul.");
-  }
-};
-$("btn-restaurer").onclick = () => $("fichier-restaurer").click();
-$("fichier-restaurer").onchange = async (ev) => {
-  const f = ev.target.files[0];
-  ev.target.value = "";
-  if (!f) return;
-  let objet;
-  try { objet = JSON.parse(await f.text()); } catch (e) { objet = null; }
-  if (!objet || !Array.isArray(objet.quittances) || objet.application !== "quittances-sci-cbi") {
-    message("message-sauvegarde", "erreur", "Ce fichier n'est pas une sauvegarde des quittances. Choisissez un fichier qui commence par « Sauvegarde_quittances ».");
-    return;
-  }
-  const n = objet.quittances.length;
-  const oui = await confirmer(`Ajouter les ${n} quittance${n > 1 ? "s" : ""} de cette sauvegarde aux Archives ?\n\nLes quittances déjà présentes sont conservées.`, "Oui, restaurer", "Annuler");
-  if (!oui) return;
-  try {
-    const nb = await importerSauvegarde(objet);
-    await rafraichirArchives();
-    afficherArchives();
-    message("message-sauvegarde", "ok", `Sauvegarde restaurée : ${nb} quittance${nb > 1 ? "s" : ""}.`);
-  } catch (e) {
-    message("message-sauvegarde", "erreur", "La sauvegarde n'a pas pu être restaurée. Prévenez Paul.");
-  }
-};
-
 /* ---------------------------------------------------------------- Mode écran d'accueil */
 function estAppareilApple() {
   const ua = navigator.userAgent || "";
@@ -578,7 +420,7 @@ function enregistrerServiceWorker() {
 let cacheeDepuis = null;
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) { cacheeDepuis = Date.now(); return; }
-  if (cacheeDepuis && Date.now() - cacheeDepuis > 60 * 60 * 1000 && $("voile").hidden) location.reload();
+  if (cacheeDepuis && Date.now() - cacheeDepuis > 60 * 60 * 1000) location.reload();
 });
 
 /* ---------------------------------------------------------------- Démarrage */
@@ -601,7 +443,6 @@ async function demarrer() {
       afficherTout();
     }
   } catch (e) { /* pas de liste enregistrée */ }
-  await rafraichirArchives();
   // 2) liste à jour depuis le tableau
   await chargerListe();
   document.body.dataset.pret = "1";

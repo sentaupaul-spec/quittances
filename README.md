@@ -2,13 +2,14 @@
 
 Application web (PWA) pour iPad : Annie choisit un locataire et un mois, puis envoie la quittance
 PDF par Mail depuis **son** compte. Tout est statique (GitHub Pages), sans serveur, sans compte, gratuit.
+L'app ne conserve aucune quittance : elle les fabrique et les envoie, c'est tout (le mail envoyé reste dans
+le dossier « Envoyés » de Mail).
 
 - **Lien de l'app :** `https://sentaupaul-spec.github.io/quittances/`
 - **Liste des locataires :** [Google Sheet](https://docs.google.com/spreadsheets/d/1QIWrw0728Bn01xriQSWWJtB1HxWUV_yNL8B-QrKn230/edit)
 - Notice imprimable pour Annie : [`docs/notice-annie.pdf`](docs/notice-annie.pdf)
 - Installation sur son iPad : [`docs/installation-ipad.md`](docs/installation-ipad.md)
 - Ce que tu dois faire toi-même (clics exacts) : [`docs/a-faire-paul.md`](docs/a-faire-paul.md)
-- Proposition V2 (Google Drive, journal) : [`docs/proposition-v2.md`](docs/proposition-v2.md)
 
 ---
 
@@ -31,7 +32,6 @@ Tout se passe dans le Google Sheet. **Rien à faire dans l'app ni sur l'iPad** :
 - Une ligne avec `Actif` vide est considérée comme **active**. Seul `non` (ou `0`, `faux`) la retire.
 - Une ligne au logement inconnu (ex. `MD4`), sans loyer lisible ou en double est ignorée ; elle est signalée en bas
   de l'onglet Locataires par une « Note pour Paul ».
-- Un locataire passé à `non` **garde ses archives** sur l'iPad (marquées « ancien locataire »).
 - Délai : immédiat en général, quelques minutes au pire (cache Google).
 - ⚠️ Écris les montants comme des nombres (Google les aligne à droite). Le format CSV de Google peut vider une cellule
   « texte » au milieu d'une colonne de nombres. Si un loyer n'apparaît pas, retape-le simplement comme un nombre.
@@ -65,19 +65,18 @@ Vérifie sur le Kbis, puis dans `js/config.js` :
 siret: "843 710 237 000 28",
 ```
 
-Puis déploie (§2). Les **nouvelles** quittances auront le bon numéro. Les quittances déjà archivées sont régénérées
-**à l'identique** (c'est voulu : un document déjà envoyé ne doit pas changer), donc elles gardent l'ancien numéro.
+Puis déploie (§2). Toutes les quittances créées ensuite auront le bon numéro.
 
 ## 4. Organisation du code
 
 ```
-index.html               page unique (3 onglets)
+index.html               page unique (2 onglets : Créer, Locataires)
 css/app.css              styles (accessibilité « senior » : texte ≥ 18 px, boutons ≥ 56 px)
 js/config.js             ⭐ données fixes : bailleur, SIRET, logements, adresse du Sheet, version
 js/sheet.js              lecture du Google Sheet (CSV) → locataires actifs
 js/montant.js            montants en lettres, format « 1 280,50 € », lecture des montants
 js/pdf.js                génération du PDF (jsPDF, synchrone), nom du fichier
-js/storage.js            IndexedDB : archives + dernière liste connue, sauvegarde/restauration
+js/storage.js            IndexedDB : dernière liste de locataires connue (hors ligne)
 js/app.js                interface
 sw.js                    service worker (hors ligne + mises à jour automatiques)
 manifest.webmanifest     PWA (nom court « Quittances »)
@@ -87,32 +86,23 @@ assets/signature_annie_cresp.png   signature d'origine
 icons/                   icônes écran d'accueil (180, 192, 512)
 tools/generer_assets.py  régénère signature allégée + icônes
 tests/                   tests (unitaires, parsing, PDF, bout en bout iPad)
-docs/                    notice Annie, installation iPad, à faire, V2
+docs/                    notice Annie, installation iPad, à faire
 ```
 
 **Choix importants**
 
-- **Archives = données, pas PDF.** Chaque quittance est un instantané complet (locataire, montants, dates,
-  bailleur, adresse). Le PDF est régénéré à la demande, **octet pour octet identique** (date de création et
-  identifiant du PDF fixés à partir de l'instantané). Même locataire + même mois → la nouvelle remplace l'ancienne.
 - **Partage dans le geste.** Le PDF est fabriqué de façon synchrone puis `navigator.share()` est appelé
-  immédiatement (iOS refuse sinon). L'archivage se fait juste après, sans bloquer.
+  immédiatement (iOS refuse sinon).
 - **Liste hors ligne.** La dernière liste reçue est gardée dans l'iPad ; sans réseau, l'app l'utilise et
   l'indique (« Pas de connexion internet : liste du … »).
 - **Sur ordinateur** (pas de menu Partager) : le PDF est téléchargé et la messagerie s'ouvre (`mailto:`) avec
   destinataire, objet et texte ; il reste à joindre le fichier.
 - **« Envoyer les quittances de tous les locataires »** (repliée en bas de l'onglet Créer) : une ligne par
-  locataire avec son bouton « Envoyer », coche ✓ une fois faite. Montants du Sheet, paiement le 1er.
+  locataire avec son bouton « Envoyer », coche ✓ « Envoyée » (le temps que l'app reste ouverte).
+  Montants du Sheet, paiement le 1er.
+- **Aucune archive.** Rien n'est conservé sur l'iPad à part la dernière liste de locataires. Pour retrouver une
+  ancienne quittance : dossier « Envoyés » de Mail, ou la refaire dans l'app (même mois, mêmes montants).
 
-### Limite à connaître : les archives sont sur l'iPad
-
-Les archives vivent dans l'app écran d'accueil (IndexedDB, persistance demandée). Safari efface les données des
-**sites** non visités depuis 7 jours, mais **pas** celles d'une app ajoutée à l'écran d'accueil. En revanche :
-
-- elles sont perdues si l'app est supprimée de l'écran d'accueil, si l'iPad est réinitialisé ou remplacé ;
-- les données de Safari et de l'app écran d'accueil sont **séparées** : ouverte dans Safari, l'app ne voit pas
-  les archives (un bandeau jaune le lui dit) ;
-- d'où le bouton « Enregistrer une sauvegarde » (onglet Archives → Fichiers / iCloud Drive) et la V2 Google Drive.
 
 ## 5. Tests
 
@@ -127,10 +117,9 @@ python3 -m venv .venv && .venv/bin/pip install -r tests/requirements.txt
 - `test_sheet.py` : colonnes dans le désordre, accents/casse des en-têtes, « 1 200,50 », lignes vides,
   `Actif = non`, logement inconnu, guillemets, doublons, erreurs d'accès.
 - `test_pdf.py` : 1 page A4, < 200 Ko, **texte identique** à `exemple_quittance_reference.pdf`, comparaison
-  pixel à pixel avec la référence, positions signature/tampon, pas de débordement (noms et montants très longs),
-  régénération identique.
-- `test_app.py` (Playwright, 820×1180 et 1180×820, Sheet simulé) : liste, création + partage, archive,
-  remplacement même mois, régénération identique après changement du Sheet, suppression avec confirmation,
-  sauvegarde/restauration, hors ligne, bandeau Safari, tailles minimales du texte et des boutons.
+  pixel à pixel avec la référence, positions signature/tampon, pas de débordement (noms et montants très longs).
+- `test_app.py` (Playwright, 820×1180 et 1180×820, Sheet simulé) : liste, création + partage, partage annulé,
+  saisie invalide, envoi « tous les locataires », modification du Sheet prise en compte, hors ligne, Sheet non
+  partagé, bandeau Safari, rien n'est conservé, tailles minimales du texte et des boutons.
 
 Les rendus (captures d'écran, PDF) sont écrits dans `tests/_sortie/` (non versionné).

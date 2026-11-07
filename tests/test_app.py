@@ -96,7 +96,7 @@ def test_accessibilite_tailles(navigateur, serveur):
     ctx.close()
 
 
-def test_creation_partage_et_archive(navigateur, serveur):
+def test_creation_et_partage(navigateur, serveur):
     ctx, page, _, erreurs = ouvrir(navigateur, serveur)
     choisir(page, "Julie Martin")
     page.select_option("#c-mois", "10")
@@ -115,8 +115,7 @@ def test_creation_partage_et_archive(navigateur, serveur):
     expect(page.locator("#c-total")).to_have_text("605,50 €")
 
     page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_contain_text("C'est fait")
-    expect(page.locator("#message-creer")).to_contain_text("Archives")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
     p = partages(page)
     assert len(p) == 1
     assert p[0]["nom"] == "Quittance_Novembre_2026_Julie_Martin.pdf"
@@ -129,76 +128,14 @@ def test_creation_partage_et_archive(navigateur, serveur):
     assert "six cent cinq euros et cinquante centimes (605,50 €)" in texte.replace("\n", " ")
     assert len(pdf) < 200 * 1024
 
-    # archive
-    page.click("[data-onglet='archives']")
-    carte = page.locator("#liste-archives .logement[data-k='MD2']")
-    expect(carte).to_contain_text("Madame Julie Martin")
-    expect(carte).to_contain_text("1 quittance")
+    # aucun onglet Archives
+    expect(page.locator(".onglet")).to_have_count(2)
     assert erreurs == []
     ctx.close()
 
 
-def test_meme_mois_remplace_et_regeneration_identique(navigateur, serveur):
-    ctx, page, tableau, _ = ouvrir(navigateur, serveur)
-    choisir(page, "Jean Dupont")
-    page.select_option("#c-mois", "9"); page.select_option("#c-annee", "2026")
-    page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_contain_text("C'est fait")
-    page.fill("#c-loyer", "560")
-    page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_contain_text("C'est fait")
-    page.select_option("#c-mois", "10")
-    page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_contain_text("C'est fait")
-    original = base64.b64decode(partages(page)[1]["b64"])   # octobre, 2e version
-
-    # Le tableau change ensuite (loyer, et le locataire passe à « non ») : l'archive ne bouge pas.
-    tableau["csv"] = CSV_DEFAUT.replace("Jean Dupont,550,\"50,00\",jean.dupont@example.com,oui",
-                                        "Jean Dupont,999,\"50,00\",jean.dupont@example.com,non")
-    page.click("[data-onglet='locataires']")
-    page.click("#btn-actualiser")
-    expect(page.locator("#message-locataires")).to_contain_text("à jour")
-    expect(page.locator("#liste-locataires")).not_to_contain_text("Jean Dupont")
-
-    page.click("[data-onglet='archives']")
-    bloc = page.locator("details.arch-locataire", has_text="Jean Dupont")
-    expect(bloc).to_contain_text("2 quittances")      # octobre remplacé, + novembre
-    expect(bloc).to_contain_text("ancien locataire")
-    bloc.locator("summary").click()
-    lignes = bloc.locator(".arch-ligne")
-    expect(lignes.nth(0)).to_contain_text("Novembre 2026")  # plus récente d'abord
-    expect(lignes.nth(1)).to_contain_text("Octobre 2026")
-    expect(lignes.nth(1)).to_contain_text("610,00 €")
-    lignes.nth(1).locator("[data-action='envoyer']").click()
-    expect(page.locator("#message-archives")).to_contain_text("c'est fait")
-    regenere = base64.b64decode(partages(page)[-1]["b64"])
-    assert regenere == original, "le PDF régénéré doit être identique à l'original"
-
-    with page.expect_download() as dl:
-        lignes.nth(1).locator("[data-action='telecharger']").click()
-    assert dl.value.suggested_filename == "Quittance_Octobre_2026_Jean_Dupont.pdf"
-    assert open(dl.value.path(), "rb").read() == original
-    ctx.close()
 
 
-def test_suppression_avec_confirmation(navigateur, serveur):
-    ctx, page, _, _ = ouvrir(navigateur, serveur)
-    choisir(page, "Éric Lanus")
-    page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_contain_text("C'est fait")
-    page.click("[data-onglet='archives']")
-    bloc = page.locator("details.arch-locataire", has_text="Éric Lanus")
-    bloc.locator("summary").click()
-    bloc.locator("[data-action='supprimer']").click()
-    expect(page.locator("#voile")).to_be_visible()
-    page.click("#fenetre-non")                                   # « Non, garder »
-    expect(page.locator("#voile")).to_be_hidden()
-    expect(bloc).to_be_visible()
-    bloc.locator("[data-action='supprimer']").click()
-    page.click("#fenetre-oui")
-    expect(page.locator("#message-archives")).to_contain_text("supprimée")
-    expect(page.locator("#liste-archives")).to_contain_text("Aucune quittance")
-    ctx.close()
 
 
 def test_partage_annule(navigateur, serveur):
@@ -208,7 +145,6 @@ def test_partage_annule(navigateur, serveur):
     expect(page.locator("#c-loyer")).to_have_value("1 200,00")
     page.click("#btn-envoyer")
     expect(page.locator("#message-creer")).to_contain_text("Envoi annulé")
-    expect(page.locator("#message-creer")).to_contain_text("Archives")
     ctx.close()
 
 
@@ -242,49 +178,15 @@ def test_tous_les_locataires(navigateur, serveur):
     expect(lignes).to_have_count(4)
     lignes.nth(0).locator("button").click()
     expect(page.locator("#message-tous")).to_contain_text("c'est fait")
-    expect(lignes.nth(0)).to_contain_text("✓ Quittance faite")
+    expect(lignes.nth(0)).to_contain_text("✓ Envoyée")
     expect(lignes.nth(0).locator("button")).to_have_text("Renvoyer")
     lignes.nth(1).locator("button").click()
-    expect(lignes.nth(1)).to_contain_text("✓ Quittance faite")
+    expect(lignes.nth(1)).to_contain_text("✓ Envoyée")
     noms = [x["nom"] for x in partages(page)]
     assert noms == ["Quittance_Novembre_2026_Jean_Dupont.pdf", "Quittance_Novembre_2026_Lea_Petit.pdf"]
     ctx.close()
 
 
-def test_sauvegarde_et_restauration(navigateur, serveur, tmp_path):
-    ctx, page, _, _ = ouvrir(navigateur, serveur, partage=False)
-    page.evaluate("delete Navigator.prototype.share; delete Navigator.prototype.canShare")
-    for nom in ["Julie Martin", "Jean Dupont"]:
-        choisir(page, nom)
-        with page.expect_download():
-            page.click("#btn-telecharger")
-    page.click("[data-onglet='archives']")
-    with page.expect_download() as dl:
-        page.click("#btn-sauvegarder")
-    assert dl.value.suggested_filename.startswith("Sauvegarde_quittances_")
-    fichier = tmp_path / dl.value.suggested_filename
-    dl.value.save_as(fichier)
-    contenu = json.loads(fichier.read_text())
-    assert len(contenu["quittances"]) == 2
-    ctx.close()
-
-    # Nouvel appareil (archives vides) → restauration
-    ctx2, page2, _, _ = ouvrir(navigateur, serveur)
-    page2.click("[data-onglet='archives']")
-    expect(page2.locator("#liste-archives")).to_contain_text("Aucune quittance")
-    page2.set_input_files("#fichier-restaurer", str(fichier))
-    expect(page2.locator("#voile")).to_be_visible()
-    page2.click("#fenetre-oui")
-    expect(page2.locator("#message-sauvegarde")).to_contain_text("2 quittances")
-    expect(page2.locator("#liste-archives")).to_contain_text("Julie Martin")
-    expect(page2.locator("#liste-archives")).to_contain_text("Jean Dupont")
-
-    # mauvais fichier
-    mauvais = tmp_path / "autre.json"
-    mauvais.write_text('{"a": 1}')
-    page2.set_input_files("#fichier-restaurer", str(mauvais))
-    expect(page2.locator("#message-sauvegarde")).to_contain_text("n'est pas une sauvegarde")
-    ctx2.close()
 
 
 def test_hors_ligne(navigateur, serveur):
@@ -359,10 +261,8 @@ def test_captures_onglets(navigateur, serveur, ecran):
     page.click("#btn-envoyer")
     expect(page.locator("#message-creer")).to_contain_text("C'est fait")
     page.screenshot(path=str(SORTIE / f"ecran_creer_rempli_{ecran}.png"), full_page=True)
-    for onglet in ["locataires", "archives"]:
+    for onglet in ["locataires"]:
         page.click(f"[data-onglet='{onglet}']")
-        if onglet == "archives":
-            page.locator("details.arch-locataire summary").first.click()
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         page.screenshot(path=str(SORTIE / f"ecran_{onglet}_{ecran}.png"), full_page=True)
     ctx.close()
@@ -384,4 +284,44 @@ def test_manifeste_et_icones(navigateur, serveur):
     # aucune ressource externe (pas de CDN)
     html = page.content()
     assert "cdn" not in html.lower()
+    ctx.close()
+
+
+def test_modification_du_sheet_prise_en_compte(navigateur, serveur):
+    """Paul modifie le Sheet → Annie voit la nouvelle liste (Actualiser ou réouverture)."""
+    ctx, page, tableau, _ = ouvrir(navigateur, serveur)
+    tableau["csv"] = (CSV_DEFAUT
+                      .replace("Julie Martin,520,80", "Julie Martin,540,85")
+                      .replace("Jean Dupont,550,\"50,00\",jean.dupont@example.com,oui",
+                               "Jean Dupont,550,\"50,00\",jean.dupont@example.com,non")
+                      + "MD3,Madame,Nina Nouvelle,450,60,nina@example.com,oui\n")
+    page.click("[data-onglet='locataires']")
+    page.click("#btn-actualiser")
+    expect(page.locator("#message-locataires")).to_contain_text("à jour")
+    liste = page.locator("#liste-locataires")
+    expect(liste).not_to_contain_text("Jean Dupont")
+    expect(liste).to_contain_text("Nina Nouvelle")
+    expect(liste).to_contain_text("625,00 €")
+    page.click("[data-onglet='creer']")
+    choisir(page, "Julie Martin")
+    expect(page.locator("#c-total")).to_have_text("625,00 €")
+    # à la réouverture aussi
+    tableau["csv"] = tableau["csv"].replace("Nina Nouvelle", "Nina Renommée")
+    page.reload(); page.wait_for_selector("body[data-pret='1']")
+    expect(page.locator("#choix-locataires")).to_contain_text("Nina Renommée")
+    ctx.close()
+
+
+def test_rien_n_est_conserve(navigateur, serveur):
+    """Seule la liste des locataires est gardée sur l'appareil, aucune quittance."""
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
+    cles = page.evaluate("""() => new Promise((ok) => {
+      const r = indexedDB.open('quittances');
+      r.onsuccess = () => { const db = r.result; const t = db.transaction('reglages');
+        const q = t.objectStore('reglages').getAllKeys(); q.onsuccess = () => ok([[...db.objectStoreNames], q.result]); };
+    })""")
+    assert cles == [["reglages"], ["liste"]]
     ctx.close()

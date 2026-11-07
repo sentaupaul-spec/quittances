@@ -40,4 +40,3 @@ ton numéro.
 ## 5. De temps en temps
 
 - Mettre le Sheet à jour quand un locataire change (README §1).
-- Tous les 2–3 mois, faire une sauvegarde des archives depuis l'iPad (onglet Archives), ou passer à la V2 Drive.
