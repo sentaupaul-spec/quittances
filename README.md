@@ -98,11 +98,8 @@ docs/                    notice Annie, installation iPad, à faire
   l'indique (« Pas de connexion internet : liste du … »).
 - **Sur ordinateur** (pas de menu Partager) : le PDF est téléchargé et la messagerie s'ouvre (`mailto:`) avec
   destinataire, objet et texte ; il reste à joindre le fichier.
-- **« Envoyer les quittances de tous les locataires »** (repliée en bas de l'onglet Créer) : une ligne par
-  locataire avec son bouton « Envoyer », coche ✓ « Envoyée ».
-  Montants du Sheet, paiement le 1er.
 - **Adresse du locataire.** Le menu Partager d'iOS ne permet pas de remplir la case « À : » de Mail. L'app copie
-  donc l'adresse quand Annie touche le nom du locataire (et à chaque envoi de « tous les locataires ») ; un cadre
+  donc l'adresse quand Annie touche le nom du locataire ; un cadre
   jaune à l'étape 4 lui rappelle de la coller. Bouton « Copier » à droite de l'adresse, en secours.
 - **Compte d'envoi.** Une app web ne peut pas choisir le compte qui envoie : c'est le compte par défaut de Mail
   sur l'iPad (voir `docs/installation-ipad.md`).
@@ -132,7 +129,7 @@ python3 -m venv .venv && .venv/bin/pip install -r tests/requirements.txt
 - `test_pdf.py` : 1 page A4, < 200 Ko, **texte identique** à `exemple_quittance_reference.pdf`, comparaison
   pixel à pixel avec la référence, positions signature/tampon, pas de débordement (noms et montants très longs).
 - `test_app.py` (Playwright, 820×1180 et 1180×820, Sheet simulé) : liste, création + partage, partage annulé,
-  saisie invalide, envoi « tous les locataires », modification du Sheet prise en compte, hors ligne, Sheet non
+  saisie invalide, modification du Sheet prise en compte, hors ligne, Sheet non
   partagé, adresse copiée et rappel à l'étape 4, pas de bandeau Safari, suivi des envois (noté, gardé après réouverture, annulation et téléchargement non
   comptés, « Marquer non envoyée », ancien locataire), seuls la liste et le suivi sont conservés, tailles
   minimales du texte et des boutons.

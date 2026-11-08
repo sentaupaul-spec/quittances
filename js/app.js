@@ -118,7 +118,6 @@ function afficherTout() {
   if (etat.choisi && !etat.locataires.some((l) => l.cle === etat.choisi)) etat.choisi = null;
   afficherChoix();
   afficherLocataires();
-  afficherTous();
   afficherSuivi();
 }
 
@@ -179,7 +178,6 @@ function changerMois(moisIdx, annee) {
   }
   remplirFormulaire();
   afficherChoix();
-  afficherTous();
   afficherSuivi();
 }
 
@@ -298,7 +296,6 @@ function noterEnvoi(q) {
   envois.noter(e).catch((err) => console.error(err));
   afficherChoix();
   majDejaEnvoyee();
-  afficherTous();
   afficherSuivi();
 }
 
@@ -307,7 +304,6 @@ function oublierEnvoi(id) {
   envois.oublier(id).catch((err) => console.error(err));
   afficherChoix();
   majDejaEnvoyee();
-  afficherTous();
   afficherSuivi();
 }
 
@@ -392,11 +388,6 @@ $("btn-copier").onclick = () => {
   });
 };
 
-// Copier l'adresse ET ouvrir le menu Partager dans le même geste : on copie d'abord.
-// Si l'iPad refusait alors le partage, on retient l'autre ordre (partage d'abord) pour la suite.
-const ORDRE_COPIE = "quittances.copieApresPartage";
-const copieApresPartage = () => { try { return localStorage.getItem(ORDRE_COPIE) === "1"; } catch (e) { return false; } };
-
 /* ---------------------------------------------------------------- Envoi / téléchargement */
 const peutPartager = (fichier) => {
   try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [fichier] })); }
@@ -420,20 +411,9 @@ function telechargerBlob(blob, nom) {
 function livrer(q, action) {
   const { blob, fichier, nom } = genererFichier(q); // synchrone
   if (action === "envoyer" && peutPartager(fichier)) {
-    const apres = copieApresPartage();
-    if (!apres) copierAdresse(q.email);
-    const partage = navigator.share({ files: [fichier], title: titreMail(q), text: texteMail(q) });
-    if (apres) copierAdresse(q.email);
-    return partage
+    return navigator.share({ files: [fichier], title: titreMail(q), text: texteMail(q) })
       .then(() => "partage")
-      .catch((e) => {
-        if (e && e.name === "AbortError") return "annule";
-        if (e && e.name === "NotAllowedError" && !apres && q.email) {
-          try { localStorage.setItem(ORDRE_COPIE, "1"); } catch (x) { /* tant pis */ }
-          return "reessayer";
-        }
-        return "echec";
-      });
+      .catch((e) => (e && e.name === "AbortError" ? "annule" : "echec"));
   }
   telechargerBlob(blob, nom);
   if (action === "envoyer") {
@@ -449,7 +429,6 @@ const MSG_LIVRAISON = {
   envoyer: {
     partage: "C'est fait.",
     annule: "Envoi annulé. Appuyez à nouveau sur « Envoyer par mail » pour recommencer.",
-    reessayer: "Appuyez encore une fois sur « Envoyer par mail ».",
     echec: "L'envoi n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer par mail ».",
     telecharge: "Le PDF est téléchargé et votre messagerie s'ouvre : joignez le fichier au message.",
   },
@@ -472,61 +451,12 @@ function creer(action) {
   message("message-creer", "info", action === "envoyer" ? "Ouverture de l'envoi…" : "Préparation du PDF…");
   promesse.then((r) => {
     if (action === "envoyer" && (r === "partage" || r === "telecharge")) noterEnvoi(q);
-    message("message-creer", r === "echec" ? "erreur" : r === "annule" || r === "reessayer" ? "info" : "ok",
+    message("message-creer", r === "echec" ? "erreur" : r === "annule" ? "info" : "ok",
       MSG_LIVRAISON[action][r] || MSG_LIVRAISON[action].telecharge);
   });
 }
 $("btn-envoyer").onclick = () => creer("envoyer");
 $("btn-telecharger").onclick = () => creer("telecharger");
-
-/* ---------------------------------------------------------------- Tous les locataires du mois */
-function afficherTous() {
-  const { moisIdx, annee } = moisChoisi();
-  $("tous-intro").innerHTML = `Pour <strong>${MOIS[moisIdx]} ${annee}</strong> (le mois choisi à l'étape 2), avec les montants de la liste `
-    + `et un paiement le 1er du mois. Appuyez sur « Envoyer » pour chaque locataire, l'un après l'autre.`
-    + `<span class="rappel rappel-tous"><span class="rappel-titre">⚠️ Attention Nanie chérie ❤️</span>`
-    + `À chaque mail, n'oublie pas de coller l'adresse du locataire : touche la case « À : », puis « Coller ». `
-    + `Vérifie que c'est bien l'adresse écrite ici sous son nom.</span>`;
-  $("tous-liste").innerHTML = etat.locataires.map((l) => {
-    const fait = !!envoiDe(l.cle, annee, moisIdx);
-    return `<div class="tous-ligne">
-      <div><span class="tag" data-k="${l.appt}">${l.appt}</span> <span class="qui">${esc(l.civ)} ${esc(l.nom)}</span>
-        <span class="combien">${formatEuros(l.loyer + l.charges)}</span>
-        <span class="combien">${l.email ? esc(l.email) : "Pas d'adresse e-mail"}</span>
-        ${fait ? `<span class="fait">✓ Envoyée</span>` : ""}</div>
-      <button class="btn ${fait ? "btn-secondaire" : "btn-principal"} btn-petit" data-cle="${esc(l.cle)}">${fait ? "Renvoyer" : "Envoyer"}</button>
-    </div>`;
-  }).join("");
-  $("tous-liste").querySelectorAll("button[data-cle]").forEach((b) => { b.onclick = () => envoyerUn(b.dataset.cle); });
-}
-
-function envoyerUn(cle) {
-  const l = etat.locataires.find((x) => x.cle === cle);
-  if (!l) return;
-  const { moisIdx, annee } = moisChoisi();
-  const q = quittance(l, {
-    moisIdx, annee, loyer: l.loyer, charges: l.charges, civ: l.civ, nom: l.nom, lieu: LIEU_PAR_DEFAUT,
-    datePaiement: iso(new Date(annee, moisIdx, 1)),
-    debut: iso(new Date(annee, moisIdx, 1)),
-    fin: iso(new Date(annee, moisIdx + 1, 0)),
-    dateQuittance: iso(new Date()),
-  });
-  let promesse;
-  try { promesse = livrer(q, "envoyer"); } catch (e) {
-    message("message-tous", "erreur", "La quittance n'a pas pu être préparée. Fermez l'application et rouvrez-la. Si cela continue, prévenez Paul.");
-    return;
-  }
-  promesse.then((r) => {
-    const qui = `${l.civ} ${l.nom}`;
-    if (r === "annule") message("message-tous", "info", `Envoi à ${qui} annulé. Vous pouvez recommencer.`);
-    else if (r === "reessayer") message("message-tous", "info", `Appuyez encore une fois sur « Envoyer » pour ${qui}.`);
-    else if (r === "echec") message("message-tous", "erreur", `L'envoi à ${qui} n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer ».`);
-    else {
-      noterEnvoi(q);
-      message("message-tous", "ok", `Quittance de ${qui} : c'est fait.`);
-    }
-  });
-}
 
 /* ---------------------------------------------------------------- Onglet Locataires */
 function afficherLocataires() {

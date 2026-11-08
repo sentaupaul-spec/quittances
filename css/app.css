@@ -68,13 +68,13 @@ input.invalide { border-color: var(--danger); background: var(--danger-fond); }
   border-radius: 12px; padding: 14px 18px; font-weight: 700; font-size: 22px; margin-bottom: 16px;
 }
 details.plus { border-top: 1px solid var(--trait); margin-top: 6px; padding-top: 8px; }
-details.plus summary, details.tous summary {
+details.plus summary {
   cursor: pointer; font-size: 19px; color: var(--accent); font-weight: 700; min-height: 52px;
   display: flex; align-items: center; list-style: none;
 }
 details summary::-webkit-details-marker { display: none; }
-details.plus summary::before, details.tous summary::before { content: "▸"; margin-right: 10px; }
-details.plus[open] summary::before, details.tous[open] summary::before { content: "▾"; }
+details.plus summary::before { content: "▸"; margin-right: 10px; }
+details.plus[open] summary::before { content: "▾"; }
 .plus-int { padding-top: 12px; }
 
 /* Choix du locataire */
@@ -127,7 +127,6 @@ details.plus[open] summary::before, details.tous[open] summary::before { content
 .etat-copie { color: var(--ok); font-weight: 700; }
 .etat-copie:empty { display: none; }
 .etat-copie.ratee { color: var(--danger); }
-.rappel-tous { margin: 14px 0 0; }
 
 /* Messages */
 .message { border-radius: 12px; padding: 16px 18px; font-size: 20px; margin-top: 16px; display: none; }
@@ -149,17 +148,6 @@ details.plus[open] summary::before, details.tous[open] summary::before { content
 .locataire-nom { font-weight: 700; font-size: 20px; }
 .locataire-detail { font-size: 19px; color: var(--doux); }
 .vide { color: var(--doux); font-size: 19px; padding: 12px 0; }
-
-/* Tous les locataires */
-details.tous { padding: 14px 22px; }
-.tous-int { padding-top: 10px; }
-.tous-int > p { margin-bottom: 14px; }
-.tous-ligne { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 0; border-top: 1px solid var(--trait); flex-wrap: wrap; }
-.tous-ligne .qui { font-size: 20px; font-weight: 700; }
-.tous-ligne .combien { font-size: 18px; color: var(--doux); font-weight: 400; display: block; }
-.tous-ligne .fait { color: var(--ok); font-weight: 700; font-size: 18px; display: block; }
-.tous-ligne .btn { width: auto; min-width: 180px; }
-
 
 /* Suivi des envois */
 .titre-suivi { font-size: 22px; font-weight: 700; margin-bottom: 16px; }

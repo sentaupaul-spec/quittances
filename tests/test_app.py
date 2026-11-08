@@ -26,7 +26,6 @@ navigator.share = async (d) => {
   let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
   window.__partages.push({ nom: f.name, type: f.type, titre: d.title, texte: d.text, b64: btoa(s) });
   if (window.__reponsePartage === 'annule') throw new DOMException('annulé', 'AbortError');
-  if (window.__reponsePartage === 'refus') { window.__reponsePartage = 'ok'; window.__partages.pop(); throw new DOMException('refusé', 'NotAllowedError'); }
 };
 """
 
@@ -139,6 +138,7 @@ def test_creation_et_partage(navigateur, serveur):
 
     # onglets : Créer, Suivi, Locataires (pas d'archives)
     expect(page.locator(".onglet")).to_have_text(["Créer", "Suivi", "Locataires"])
+    expect(page.locator("#onglet-creer")).not_to_contain_text("tous les locataires")
     assert erreurs == []
     ctx.close()
 
@@ -177,25 +177,6 @@ def test_ordinateur_sans_partage_telecharge(navigateur, serveur):
     assert re.match(r"Quittance_[A-Za-z]+_\d{4}_Julie_Martin\.pdf", dl.value.suggested_filename)
     expect(page.locator("#message-creer")).to_contain_text("PDF téléchargé")
     ctx.close()
-
-
-def test_tous_les_locataires(navigateur, serveur):
-    ctx, page, _, _ = ouvrir(navigateur, serveur)
-    page.select_option("#c-mois", "10"); page.select_option("#c-annee", "2026")
-    page.locator("#tous summary").click()
-    lignes = page.locator(".tous-ligne")
-    expect(lignes).to_have_count(4)
-    lignes.nth(0).locator("button").click()
-    expect(page.locator("#message-tous")).to_contain_text("c'est fait")
-    expect(lignes.nth(0)).to_contain_text("✓ Envoyée")
-    expect(lignes.nth(0).locator("button")).to_have_text("Renvoyer")
-    lignes.nth(1).locator("button").click()
-    expect(lignes.nth(1)).to_contain_text("✓ Envoyée")
-    noms = [x["nom"] for x in partages(page)]
-    assert noms == ["Quittance_Novembre_2026_Jean_Dupont.pdf", "Quittance_Novembre_2026_Lea_Petit.pdf"]
-    ctx.close()
-
-
 
 
 def test_hors_ligne(navigateur, serveur):
@@ -304,34 +285,8 @@ def test_adresse_copiee_et_rappel_nani(navigateur, serveur):
     expect(page.locator("#rappel-adresse")).to_be_hidden()
     expect(page.locator("#aide-mail")).to_contain_text("Pas d'adresse e-mail enregistrée")
 
-    # « tous les locataires » : rappel visible, adresse sous chaque nom, adresse copiée à chaque envoi
-    page.evaluate("navigator.clipboard.writeText('rien')")
-    page.locator("#tous summary").click()
-    expect(page.locator("#tous-intro")).to_contain_text("Attention Nanie chérie ❤️")
-    ligne = page.locator(".tous-ligne", has_text="Julie Martin")
-    expect(ligne).to_contain_text("julie.martin@example.com")
-    ligne.locator("button").click()
-    expect(ligne).to_contain_text("✓ Envoyée")
-    assert presse_papiers(page) == "julie.martin@example.com"
     page.screenshot(path=str(SORTIE / "ecran_rappel_nani.png"), full_page=True)
     assert erreurs == []
-    ctx.close()
-
-
-def test_ipad_qui_refuse_copie_et_partage_ensemble(navigateur, serveur):
-    """Si l'iPad refusait le partage parce que l'adresse vient d'être copiée, on le dit et on change d'ordre."""
-    ctx, page, _, _ = ouvrir(navigateur, serveur)
-    choisir(page, "Julie Martin")
-    page.evaluate("window.__reponsePartage = 'refus'")
-    page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_have_text("Appuyez encore une fois sur « Envoyer par mail ».")
-    assert partages(page) == []
-    assert page.evaluate("localStorage.getItem('quittances.copieApresPartage')") == "1"
-    page.evaluate("navigator.clipboard.writeText('rien')")
-    page.click("#btn-envoyer")
-    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
-    assert len(partages(page)) == 1
-    assert presse_papiers(page) == "julie.martin@example.com"
     ctx.close()
 
 
@@ -437,11 +392,10 @@ def test_suivi_des_envois(navigateur, serveur):
     expect(page.locator(".choix-btn", has_text="Julie Martin")).to_contain_text("✓ Novembre déjà envoyée")
     expect(page.locator(".choix-btn", has_text="Jean Dupont")).not_to_contain_text("déjà envoyée")
 
-    # un autre via « tous les locataires »
-    page.locator("#tous summary").click()
-    page.locator(".tous-ligne", has_text="Jean Dupont").locator("button").click()
-    expect(page.locator(".tous-ligne", has_text="Jean Dupont")).to_contain_text("✓ Envoyée")
-    expect(page.locator(".tous-ligne", has_text="Julie Martin")).to_contain_text("✓ Envoyée")
+    # un deuxième locataire
+    choisir(page, "Jean Dupont")
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
 
     page.click("[data-onglet='suivi']")
     expect(page.locator("#suivi-bilan")).to_have_text("2 quittances de novembre 2026 envoyées sur 4.")
@@ -490,10 +444,10 @@ def test_suivi_des_envois(navigateur, serveur):
 
 def test_suivi_tout_envoye_et_ancien_locataire(navigateur, serveur):
     ctx, page, tableau, _ = ouvrir(navigateur, serveur)
-    page.locator("#tous summary").click()
-    for i in range(4):
-        page.locator(".tous-ligne").nth(i).locator("button").click()
-        expect(page.locator(".tous-ligne").nth(i)).to_contain_text("✓ Envoyée")
+    for nom in ["Jean Dupont", "Léa Petit", "Julie Martin", "Éric Lanus"]:
+        choisir(page, nom)
+        page.click("#btn-envoyer")
+        expect(page.locator("#message-creer")).to_have_text("C'est fait.")
     page.click("[data-onglet='suivi']")
     expect(page.locator("#suivi-bilan")).to_contain_text("✓ Toutes les quittances de")
     # Paul retire Éric Lanus du tableau : son envoi du mois reste visible à part
