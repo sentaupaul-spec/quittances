@@ -151,6 +151,8 @@ function locataireChoisi() { return etat.locataires.find((l) => l.cle === etat.c
 
 function choisirLocataire(cle, defiler) {
   etat.choisi = cle;
+  const l = locataireChoisi();
+  if (l && l.email) copierAdresse(l.email); // dans le geste : l'adresse est prête à coller dans Mail
   afficherChoix();
   remplirFormulaire();
   if (defiler) $("etape-2").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -195,9 +197,10 @@ function remplirFormulaire() {
   $("c-fin").value = iso(new Date(annee, moisIdx + 1, 0));
   $("c-lieu").value = LIEU_PAR_DEFAUT;
   $("c-datequittance").value = iso(new Date());
-  $("aide-mail").innerHTML = l.email
-    ? `Adresse e-mail de ${esc(l.civ)} ${esc(l.nom)} :<br><strong>${esc(l.email)}</strong>`
-    : `Pas d'adresse e-mail enregistrée pour ${esc(l.civ)} ${esc(l.nom)}.`;
+  $("rappel-adresse").hidden = !l.email;
+  $("rappel-mail").textContent = l.email || "";
+  majEtatCopie();
+  $("aide-mail").textContent = l.email ? "" : `Pas d'adresse e-mail enregistrée pour ${l.civ} ${l.nom} : demandez-la à Paul.`;
   majDejaEnvoyee();
   document.querySelectorAll("#verif input").forEach((i) => i.classList.remove("invalide"));
   effacerMessage("message-creer");
@@ -351,6 +354,36 @@ function afficherSuivi() {
   });
 }
 
+/* ---------------------------------------------------------------- Adresse e-mail à coller */
+// Le menu Partager de l'iPad ne permet pas de remplir la case « À : » de Mail.
+// L'app copie donc l'adresse du locataire : Annie n'a qu'à toucher « À : » puis « Coller ».
+function copierAdresse(email) {
+  etat.copiee = null;
+  if (!email) return Promise.resolve(false);
+  let p;
+  try { p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(email) : null; }
+  catch (e) { p = null; }
+  if (!p) { majEtatCopie(); return Promise.resolve(false); }
+  return p.then(() => { etat.copiee = email; majEtatCopie(); return true; },
+                () => { majEtatCopie(); return false; });
+}
+
+function majEtatCopie() {
+  const l = locataireChoisi();
+  const ok = !!(l && l.email && etat.copiee === l.email);
+  $("etat-copie").textContent = ok ? "✓ Adresse copiée, prête à coller." : "";
+  $("btn-copier").textContent = ok ? "Copier à nouveau l'adresse" : "Copier l'adresse";
+}
+$("btn-copier").onclick = () => {
+  const l = locataireChoisi();
+  if (l && l.email) copierAdresse(l.email);
+};
+
+// Copier l'adresse ET ouvrir le menu Partager dans le même geste : on copie d'abord.
+// Si l'iPad refusait alors le partage, on retient l'autre ordre (partage d'abord) pour la suite.
+const ORDRE_COPIE = "quittances.copieApresPartage";
+const copieApresPartage = () => { try { return localStorage.getItem(ORDRE_COPIE) === "1"; } catch (e) { return false; } };
+
 /* ---------------------------------------------------------------- Envoi / téléchargement */
 const peutPartager = (fichier) => {
   try { return !!(navigator.share && navigator.canShare && navigator.canShare({ files: [fichier] })); }
@@ -374,9 +407,20 @@ function telechargerBlob(blob, nom) {
 function livrer(q, action) {
   const { blob, fichier, nom } = genererFichier(q); // synchrone
   if (action === "envoyer" && peutPartager(fichier)) {
-    return navigator.share({ files: [fichier], title: titreMail(q), text: texteMail(q) })
+    const apres = copieApresPartage();
+    if (!apres) copierAdresse(q.email);
+    const partage = navigator.share({ files: [fichier], title: titreMail(q), text: texteMail(q) });
+    if (apres) copierAdresse(q.email);
+    return partage
       .then(() => "partage")
-      .catch((e) => (e && e.name === "AbortError" ? "annule" : "echec"));
+      .catch((e) => {
+        if (e && e.name === "AbortError") return "annule";
+        if (e && e.name === "NotAllowedError" && !apres && q.email) {
+          try { localStorage.setItem(ORDRE_COPIE, "1"); } catch (x) { /* tant pis */ }
+          return "reessayer";
+        }
+        return "echec";
+      });
   }
   telechargerBlob(blob, nom);
   if (action === "envoyer") {
@@ -392,6 +436,7 @@ const MSG_LIVRAISON = {
   envoyer: {
     partage: "C'est fait.",
     annule: "Envoi annulé. Appuyez à nouveau sur « Envoyer par mail » pour recommencer.",
+    reessayer: "Appuyez encore une fois sur « Envoyer par mail ».",
     echec: "L'envoi n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer par mail ».",
     telecharge: "Le PDF est téléchargé et votre messagerie s'ouvre : joignez le fichier au message.",
   },
@@ -414,7 +459,7 @@ function creer(action) {
   message("message-creer", "info", action === "envoyer" ? "Ouverture de l'envoi…" : "Préparation du PDF…");
   promesse.then((r) => {
     if (action === "envoyer" && (r === "partage" || r === "telecharge")) noterEnvoi(q);
-    message("message-creer", r === "echec" ? "erreur" : r === "annule" ? "info" : "ok",
+    message("message-creer", r === "echec" ? "erreur" : r === "annule" || r === "reessayer" ? "info" : "ok",
       MSG_LIVRAISON[action][r] || MSG_LIVRAISON[action].telecharge);
   });
 }
@@ -425,12 +470,16 @@ $("btn-telecharger").onclick = () => creer("telecharger");
 function afficherTous() {
   const { moisIdx, annee } = moisChoisi();
   $("tous-intro").innerHTML = `Pour <strong>${MOIS[moisIdx]} ${annee}</strong> (le mois choisi à l'étape 2), avec les montants de la liste `
-    + `et un paiement le 1er du mois. Appuyez sur « Envoyer » pour chaque locataire, l'un après l'autre.`;
+    + `et un paiement le 1er du mois. Appuyez sur « Envoyer » pour chaque locataire, l'un après l'autre.`
+    + `<span class="rappel rappel-tous"><span class="rappel-titre">⚠️ Attention Nani chérie ❤️</span>`
+    + `À chaque mail, n'oublie pas de coller l'adresse du locataire : touche la case « À : », puis « Coller ». `
+    + `Vérifie que c'est bien l'adresse écrite ici sous son nom.</span>`;
   $("tous-liste").innerHTML = etat.locataires.map((l) => {
     const fait = !!envoiDe(l.cle, annee, moisIdx);
     return `<div class="tous-ligne">
       <div><span class="tag" data-k="${l.appt}">${l.appt}</span> <span class="qui">${esc(l.civ)} ${esc(l.nom)}</span>
         <span class="combien">${formatEuros(l.loyer + l.charges)}</span>
+        <span class="combien">${l.email ? esc(l.email) : "Pas d'adresse e-mail"}</span>
         ${fait ? `<span class="fait">✓ Envoyée</span>` : ""}</div>
       <button class="btn ${fait ? "btn-secondaire" : "btn-principal"} btn-petit" data-cle="${esc(l.cle)}">${fait ? "Renvoyer" : "Envoyer"}</button>
     </div>`;
@@ -457,6 +506,7 @@ function envoyerUn(cle) {
   promesse.then((r) => {
     const qui = `${l.civ} ${l.nom}`;
     if (r === "annule") message("message-tous", "info", `Envoi à ${qui} annulé. Vous pouvez recommencer.`);
+    else if (r === "reessayer") message("message-tous", "info", `Appuyez encore une fois sur « Envoyer » pour ${qui}.`);
     else if (r === "echec") message("message-tous", "erreur", `L'envoi à ${qui} n'a pas pu s'ouvrir. Appuyez à nouveau sur « Envoyer ».`);
     else {
       noterEnvoi(q);
@@ -496,16 +546,6 @@ $("btn-reessayer").onclick = async () => {
   await chargerListe();
   $("btn-reessayer").disabled = false;
 };
-
-/* ---------------------------------------------------------------- Mode écran d'accueil */
-function estAppareilApple() {
-  const ua = navigator.userAgent || "";
-  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-}
-function estStandalone() {
-  return window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
-}
-if (estAppareilApple() && !estStandalone()) $("bandeau-safari").hidden = false;
 
 /* ---------------------------------------------------------------- Mises à jour de l'app */
 function enregistrerServiceWorker() {

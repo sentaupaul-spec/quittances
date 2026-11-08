@@ -20,12 +20,6 @@
 </head>
 <body>
 
-<div id="bandeau-safari" class="bandeau" hidden>
-  <strong>Vous êtes dans Safari.</strong>
-  Fermez Safari et touchez l'icône <strong>« Quittances »</strong> sur l'écran d'accueil de l'iPad.
-  <span class="bandeau-petit">(Pour installer l'icône : bouton Partager, puis « Sur l'écran d'accueil ».)</span>
-</div>
-
 <header class="haut">
   <div class="haut-int">
     <div class="marque"><b>Quittances de loyer</b>SCI CBI — Annie Cresp</div>
@@ -100,6 +94,13 @@
         <p class="attente" id="attente-4">Choisissez d'abord un locataire (étape 1).</p>
         <div id="envoi" hidden>
           <p class="deja-envoyee" id="deja-envoyee" hidden></p>
+          <div class="rappel" id="rappel-adresse" hidden>
+            <p class="rappel-titre">⚠️ Attention Nani chérie ❤️</p>
+            <p>N'oublie pas de copier-coller l'adresse mail du locataire : dans Mail, touche la case <strong>« À : »</strong>, puis <strong>« Coller »</strong>.</p>
+            <p class="rappel-mail" id="rappel-mail"></p>
+            <p class="etat-copie" id="etat-copie" role="status" aria-live="polite"></p>
+            <button class="btn btn-secondaire" id="btn-copier">Copier l'adresse</button>
+          </div>
           <div class="actions">
             <button class="btn btn-principal" id="btn-envoyer">✉️&nbsp; Envoyer par mail</button>
             <p class="aide-mail" id="aide-mail"></p>

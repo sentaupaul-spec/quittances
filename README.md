@@ -77,7 +77,7 @@ js/sheet.js              lecture du Google Sheet (CSV) → locataires actifs
 js/montant.js            montants en lettres, format « 1 280,50 € », lecture des montants
 js/pdf.js                génération du PDF (jsPDF, synchrone), nom du fichier
 js/storage.js            IndexedDB : dernière liste de locataires (hors ligne) + suivi des envois
-js/mail.js               ⭐ texte du mail (objet, « Bonjour Monsieur Nom », signature)
+js/mail.js               ⭐ texte du mail (objet, « Bonjour Prénom Nom », signature)
 js/app.js                interface
 sw.js                    service worker (hors ligne + mises à jour automatiques)
 manifest.webmanifest     PWA (nom court « Quittances »)
@@ -101,6 +101,11 @@ docs/                    notice Annie, installation iPad, à faire
 - **« Envoyer les quittances de tous les locataires »** (repliée en bas de l'onglet Créer) : une ligne par
   locataire avec son bouton « Envoyer », coche ✓ « Envoyée ».
   Montants du Sheet, paiement le 1er.
+- **Adresse du locataire.** Le menu Partager d'iOS ne permet pas de remplir la case « À : » de Mail. L'app copie
+  donc l'adresse quand Annie touche le nom du locataire (et à chaque envoi de « tous les locataires ») ; un cadre
+  jaune à l'étape 4 lui rappelle de la coller. Bouton « Copier l'adresse » en secours.
+- **Compte d'envoi.** Une app web ne peut pas choisir le compte qui envoie : c'est le compte par défaut de Mail
+  sur l'iPad (voir `docs/installation-ipad.md`).
 - **Suivi des envois (onglet « Suivi »).** Pour le mois choisi (le même que dans « Créer ») : chaque locataire
   avec « ✓ Envoyée le 7 novembre 2026 à 15 h 59 » ou « Pas encore envoyée » + bouton « Faire la quittance ».
   Un envoi est noté quand le menu Partager se termine sans annulation (ou, sur ordinateur, quand la messagerie
@@ -128,7 +133,7 @@ python3 -m venv .venv && .venv/bin/pip install -r tests/requirements.txt
   pixel à pixel avec la référence, positions signature/tampon, pas de débordement (noms et montants très longs).
 - `test_app.py` (Playwright, 820×1180 et 1180×820, Sheet simulé) : liste, création + partage, partage annulé,
   saisie invalide, envoi « tous les locataires », modification du Sheet prise en compte, hors ligne, Sheet non
-  partagé, bandeau Safari, suivi des envois (noté, gardé après réouverture, annulation et téléchargement non
+  partagé, adresse copiée et rappel à l'étape 4, pas de bandeau Safari, suivi des envois (noté, gardé après réouverture, annulation et téléchargement non
   comptés, « Marquer non envoyée », ancien locataire), seuls la liste et le suivi sont conservés, tailles
   minimales du texte et des boutons.
 

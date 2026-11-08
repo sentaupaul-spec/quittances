@@ -26,12 +26,14 @@ navigator.share = async (d) => {
   let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
   window.__partages.push({ nom: f.name, type: f.type, titre: d.title, texte: d.text, b64: btoa(s) });
   if (window.__reponsePartage === 'annule') throw new DOMException('annulé', 'AbortError');
+  if (window.__reponsePartage === 'refus') { window.__reponsePartage = 'ok'; window.__partages.pop(); throw new DOMException('refusé', 'NotAllowedError'); }
 };
 """
 
 
 def ouvrir(navigateur, serveur, ecran="portrait", partage=True, csv=CSV_DEFAUT):
     ctx = navigateur.new_context(viewport=IPAD[ecran], has_touch=True, locale="fr-FR", accept_downloads=True)
+    ctx.grant_permissions(["clipboard-read", "clipboard-write"], origin=serveur)
     tableau = {"csv": csv, "statut": 200}
     simuler_tableau(ctx, tableau)
     if partage:
@@ -114,7 +116,7 @@ def test_creation_et_partage(navigateur, serveur):
     expect(page.locator("#c-debut")).to_have_value("2026-11-01")
     expect(page.locator("#c-fin")).to_have_value("2026-11-30")
     expect(page.locator("#c-lieu")).to_have_value("Montpellier")
-    expect(page.locator("#aide-mail")).to_contain_text("julie.martin@example.com")
+    expect(page.locator("#rappel-mail")).to_have_text("julie.martin@example.com")
 
     # modification ponctuelle : total recalculé en direct
     page.fill("#c-charges", "85,5")
@@ -127,7 +129,7 @@ def test_creation_et_partage(navigateur, serveur):
     assert p[0]["nom"] == "Quittance_Novembre_2026_Julie_Martin.pdf"
     assert p[0]["type"] == "application/pdf"
     assert p[0]["titre"] == "Quittance de loyer — Novembre 2026"
-    assert p[0]["texte"] == ("Bonjour Madame Martin,\n\nVoici votre quittance de loyer du mois de novembre 2026."
+    assert p[0]["texte"] == ("Bonjour Julie Martin,\n\nVoici votre quittance de loyer du mois de novembre 2026."
                              "\n\nJe vous en souhaite bonne réception.\n\nCordialement,\nAnnie Cresp")
     pdf = base64.b64decode(p[0]["b64"])
     texte = fitz.open(stream=pdf, filetype="pdf")[0].get_text()
@@ -239,7 +241,8 @@ def test_tableau_non_partage(navigateur, serveur):
     ctx.close()
 
 
-def test_bandeau_safari_ipad(navigateur, serveur):
+def test_pas_de_bandeau_safari(navigateur, serveur):
+    """L'icône est installée : plus de bandeau « Vous êtes dans Safari », même ouvert dans Safari sur iPad."""
     ua = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) "
           "Version/17.0 Safari/605.1.15")
     ctx = navigateur.new_context(viewport=IPAD["portrait"], user_agent=ua, has_touch=True)
@@ -248,17 +251,75 @@ def test_bandeau_safari_ipad(navigateur, serveur):
                         "Object.defineProperty(navigator, 'maxTouchPoints', {get: () => 5});")
     page = ctx.new_page()
     page.goto(serveur + "/index.html")
-    expect(page.locator("#bandeau-safari")).to_be_visible()
-    expect(page.locator("#bandeau-safari")).to_contain_text("Quittances")
+    page.wait_for_selector("body[data-pret='1']")
+    expect(page.locator("body")).not_to_contain_text("Vous êtes dans Safari")
     ctx.close()
-    # Ordinateur : pas de bandeau
-    ctx2 = navigateur.new_context()
-    simuler_tableau(ctx2, {"csv": CSV_DEFAUT})
-    p2 = ctx2.new_page()
-    p2.goto(serveur + "/index.html")
-    p2.wait_for_selector("body[data-pret='1']")
-    expect(p2.locator("#bandeau-safari")).to_be_hidden()
-    ctx2.close()
+
+
+def presse_papiers(page):
+    return page.evaluate("navigator.clipboard.readText()")
+
+
+def test_adresse_copiee_et_rappel_nani(navigateur, serveur):
+    ctx, page, _, erreurs = ouvrir(navigateur, serveur)
+    expect(page.locator("#rappel-adresse")).to_be_hidden()
+    choisir(page, "Julie Martin")
+    rappel = page.locator("#rappel-adresse")
+    expect(rappel).to_be_visible()
+    expect(rappel).to_contain_text("⚠️ Attention Nani chérie ❤️")
+    expect(rappel).to_contain_text("N'oublie pas de copier-coller l'adresse mail")
+    expect(page.locator("#rappel-mail")).to_have_text("julie.martin@example.com")
+    expect(page.locator("#etat-copie")).to_have_text("✓ Adresse copiée, prête à coller.")
+    assert presse_papiers(page) == "julie.martin@example.com"
+    # le rappel est AVANT le bouton d'envoi (on le voit forcément)
+    assert page.evaluate("""() => document.getElementById('rappel-adresse').getBoundingClientRect().bottom
+                            <= document.getElementById('btn-envoyer').getBoundingClientRect().top""")
+
+    # un autre locataire : son adresse remplace la précédente
+    choisir(page, "Jean Dupont")
+    expect(page.locator("#rappel-mail")).to_have_text("jean.dupont@example.com")
+    expect(page.locator("#etat-copie")).to_have_text("✓ Adresse copiée, prête à coller.")
+    assert presse_papiers(page) == "jean.dupont@example.com"
+
+    # bouton « Copier l'adresse » (au cas où Annie aurait copié autre chose entre-temps)
+    page.evaluate("navigator.clipboard.writeText('autre chose')")
+    page.click("#btn-copier")
+    page.wait_for_function("navigator.clipboard.readText().then(t => t === 'jean.dupont@example.com')")
+
+    # locataire sans adresse : pas de rappel, message clair
+    choisir(page, "Léa Petit")
+    expect(page.locator("#rappel-adresse")).to_be_hidden()
+    expect(page.locator("#aide-mail")).to_contain_text("Pas d'adresse e-mail enregistrée")
+
+    # « tous les locataires » : rappel visible, adresse sous chaque nom, adresse copiée à chaque envoi
+    page.evaluate("navigator.clipboard.writeText('rien')")
+    page.locator("#tous summary").click()
+    expect(page.locator("#tous-intro")).to_contain_text("Attention Nani chérie ❤️")
+    ligne = page.locator(".tous-ligne", has_text="Julie Martin")
+    expect(ligne).to_contain_text("julie.martin@example.com")
+    ligne.locator("button").click()
+    expect(ligne).to_contain_text("✓ Envoyée")
+    assert presse_papiers(page) == "julie.martin@example.com"
+    page.screenshot(path=str(SORTIE / "ecran_rappel_nani.png"), full_page=True)
+    assert erreurs == []
+    ctx.close()
+
+
+def test_ipad_qui_refuse_copie_et_partage_ensemble(navigateur, serveur):
+    """Si l'iPad refusait le partage parce que l'adresse vient d'être copiée, on le dit et on change d'ordre."""
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.evaluate("window.__reponsePartage = 'refus'")
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("Appuyez encore une fois sur « Envoyer par mail ».")
+    assert partages(page) == []
+    assert page.evaluate("localStorage.getItem('quittances.copieApresPartage')") == "1"
+    page.evaluate("navigator.clipboard.writeText('rien')")
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
+    assert len(partages(page)) == 1
+    assert presse_papiers(page) == "julie.martin@example.com"
+    ctx.close()
 
 
 @pytest.mark.parametrize("ecran", ["portrait", "paysage"])
