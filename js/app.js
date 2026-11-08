@@ -471,7 +471,7 @@ function afficherTous() {
   const { moisIdx, annee } = moisChoisi();
   $("tous-intro").innerHTML = `Pour <strong>${MOIS[moisIdx]} ${annee}</strong> (le mois choisi à l'étape 2), avec les montants de la liste `
     + `et un paiement le 1er du mois. Appuyez sur « Envoyer » pour chaque locataire, l'un après l'autre.`
-    + `<span class="rappel rappel-tous"><span class="rappel-titre">⚠️ Attention Nani chérie ❤️</span>`
+    + `<span class="rappel rappel-tous"><span class="rappel-titre">⚠️ Attention Nanie chérie ❤️</span>`
     + `À chaque mail, n'oublie pas de coller l'adresse du locataire : touche la case « À : », puis « Coller ». `
     + `Vérifie que c'est bien l'adresse écrite ici sous son nom.</span>`;
   $("tous-liste").innerHTML = etat.locataires.map((l) => {

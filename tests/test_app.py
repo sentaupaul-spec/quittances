@@ -266,7 +266,7 @@ def test_adresse_copiee_et_rappel_nani(navigateur, serveur):
     choisir(page, "Julie Martin")
     rappel = page.locator("#rappel-adresse")
     expect(rappel).to_be_visible()
-    expect(rappel).to_contain_text("⚠️ Attention Nani chérie ❤️")
+    expect(rappel).to_contain_text("⚠️ Attention Nanie chérie ❤️")
     expect(rappel).to_contain_text("N'oublie pas de copier-coller l'adresse mail")
     expect(page.locator("#rappel-mail")).to_have_text("julie.martin@example.com")
     expect(page.locator("#etat-copie")).to_have_text("✓ Adresse copiée, prête à coller.")
@@ -294,7 +294,7 @@ def test_adresse_copiee_et_rappel_nani(navigateur, serveur):
     # « tous les locataires » : rappel visible, adresse sous chaque nom, adresse copiée à chaque envoi
     page.evaluate("navigator.clipboard.writeText('rien')")
     page.locator("#tous summary").click()
-    expect(page.locator("#tous-intro")).to_contain_text("Attention Nani chérie ❤️")
+    expect(page.locator("#tous-intro")).to_contain_text("Attention Nanie chérie ❤️")
     ligne = page.locator(".tous-ligne", has_text="Julie Martin")
     expect(ligne).to_contain_text("julie.martin@example.com")
     ligne.locator("button").click()
