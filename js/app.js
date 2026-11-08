@@ -372,11 +372,24 @@ function majEtatCopie() {
   const l = locataireChoisi();
   const ok = !!(l && l.email && etat.copiee === l.email);
   $("etat-copie").textContent = ok ? "✓ Adresse copiée, prête à coller." : "";
-  $("btn-copier").textContent = ok ? "Copier à nouveau l'adresse" : "Copier l'adresse";
+  $("etat-copie").classList.remove("ratee");
 }
+let minuterieCopie = null;
 $("btn-copier").onclick = () => {
   const l = locataireChoisi();
-  if (l && l.email) copierAdresse(l.email);
+  if (!l || !l.email) return;
+  copierAdresse(l.email).then((ok) => {
+    const b = $("btn-copier");
+    clearTimeout(minuterieCopie);
+    if (ok) {
+      b.textContent = "✓ Copié";
+      minuterieCopie = setTimeout(() => { b.textContent = "Copier"; }, 2000);
+    } else {
+      b.textContent = "Copier";
+      $("etat-copie").textContent = "L'adresse n'a pas pu être copiée. Appuyez à nouveau sur « Copier ».";
+      $("etat-copie").classList.add("ratee");
+    }
+  });
 };
 
 // Copier l'adresse ET ouvrir le menu Partager dans le même geste : on copie d'abord.

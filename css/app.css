@@ -120,10 +120,13 @@ details.plus[open] summary::before, details.tous[open] summary::before { content
 .rappel { display: block; background: #fff1c7; color: #3d2e00; border: 3px solid #e09a1a; border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; font-size: 20px; }
 .rappel p { margin-bottom: 8px; }
 .rappel-titre { display: block; font-size: 24px; font-weight: 800; color: #8a3b00; margin-bottom: 6px; }
-.rappel-mail { font-size: 23px; font-weight: 800; color: var(--encre); background: #fff; border-radius: 10px; padding: 10px 14px; word-break: break-all; }
+.rappel-ligne { display: flex; align-items: stretch; gap: 10px; margin-bottom: 8px; }
+.rappel .rappel-mail { flex: 1; min-width: 0; margin-bottom: 0; display: flex; align-items: center; font-size: 23px; font-weight: 800; color: var(--encre); background: #fff; border-radius: 10px; padding: 10px 14px; word-break: break-all; }
+.rappel-ligne .btn { flex: none; min-width: 124px; }
+@media (max-width: 560px) { .rappel-ligne { flex-direction: column; } }
 .etat-copie { color: var(--ok); font-weight: 700; }
 .etat-copie:empty { display: none; }
-.rappel .btn { margin-top: 4px; }
+.etat-copie.ratee { color: var(--danger); }
 .rappel-tous { margin: 14px 0 0; }
 
 /* Messages */

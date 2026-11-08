@@ -103,7 +103,7 @@ docs/                    notice Annie, installation iPad, à faire
   Montants du Sheet, paiement le 1er.
 - **Adresse du locataire.** Le menu Partager d'iOS ne permet pas de remplir la case « À : » de Mail. L'app copie
   donc l'adresse quand Annie touche le nom du locataire (et à chaque envoi de « tous les locataires ») ; un cadre
-  jaune à l'étape 4 lui rappelle de la coller. Bouton « Copier l'adresse » en secours.
+  jaune à l'étape 4 lui rappelle de la coller. Bouton « Copier » à droite de l'adresse, en secours.
 - **Compte d'envoi.** Une app web ne peut pas choisir le compte qui envoie : c'est le compte par défaut de Mail
   sur l'iPad (voir `docs/installation-ipad.md`).
 - **Suivi des envois (onglet « Suivi »).** Pour le mois choisi (le même que dans « Créer ») : chaque locataire

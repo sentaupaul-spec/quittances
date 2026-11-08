@@ -283,8 +283,21 @@ def test_adresse_copiee_et_rappel_nani(navigateur, serveur):
 
     # bouton « Copier l'adresse » (au cas où Annie aurait copié autre chose entre-temps)
     page.evaluate("navigator.clipboard.writeText('autre chose')")
+    bouton = page.locator("#btn-copier")
+    expect(bouton).to_have_text("Copier")
     page.click("#btn-copier")
+    expect(bouton).to_have_text("✓ Copié")
     page.wait_for_function("navigator.clipboard.readText().then(t => t === 'jean.dupont@example.com')")
+    expect(bouton).to_have_text("Copier", timeout=4000)
+    # le bouton est à droite de l'adresse, sur la même ligne
+    assert page.evaluate("""() => { const a = document.getElementById('rappel-mail').getBoundingClientRect();
+      const b = document.getElementById('btn-copier').getBoundingClientRect();
+      return b.left >= a.right && b.top < a.bottom && b.bottom > a.top; }""")
+    # si la copie échoue, on le dit
+    page.evaluate("() => { navigator.clipboard.writeText = () => Promise.reject(new DOMException('non', 'NotAllowedError')); }")
+    page.click("#btn-copier")
+    expect(page.locator("#etat-copie")).to_contain_text("n'a pas pu être copiée")
+    page.evaluate("() => { delete navigator.clipboard.writeText; }")
 
     # locataire sans adresse : pas de rappel, message clair
     choisir(page, "Léa Petit")
