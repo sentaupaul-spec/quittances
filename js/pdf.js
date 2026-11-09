@@ -1,6 +1,6 @@
 // Génération du PDF de la quittance (1 page A4), modèle service-public.
 // Tout est synchrone : indispensable pour appeler navigator.share() dans le geste de l'utilisateur.
-import { MOIS, SIGNATURE_TAILLE_MM } from "./config.js";
+import { MOIS, deMois, SIGNATURE_TAILLE_MM } from "./config.js";
 import { montantEnLettres, formatEuros } from "./montant.js";
 
 let signatureDataUrl = null;
@@ -74,7 +74,7 @@ export function construirePDF(q) {
   doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(24, 95, 165);
   doc.text("QUITTANCE DE LOYER", W / 2, 17, { align: "center" });
   doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(80, 80, 80);
-  doc.text(`Mois de ${MOIS[q.moisIdx]} ${q.annee}`, W / 2, 25, { align: "center" });
+  doc.text(`Mois ${deMois(q.moisIdx)}${MOIS[q.moisIdx]} ${q.annee}`, W / 2, 25, { align: "center" });
   doc.setFont("helvetica", "italic"); doc.setFontSize(8); doc.setTextColor(130, 130, 130);
   doc.text("Location vide ou meublée à titre de résidence principale", W / 2, 32, { align: "center" });
   doc.setDrawColor(55, 138, 221); doc.setLineWidth(0.7); doc.line(ml, 39, mr, 39);

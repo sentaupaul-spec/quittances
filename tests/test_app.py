@@ -175,6 +175,30 @@ def test_quittance_d_un_autre_mois(navigateur, serveur):
     ctx.close()
 
 
+@pytest.mark.parametrize("idx,titre", [(3, "Mois d'Avril 2026"), (7, "Mois d'Août 2026"), (9, "Mois d'Octobre 2026"), (2, "Mois de Mars 2026")])
+def test_elision_du_mois_sur_la_quittance(navigateur, serveur, idx, titre):
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.select_option("#c-mois", str(idx)); page.select_option("#c-annee", "2026")
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
+    assert titre in texte_pdf(partages(page)[0])
+    ctx.close()
+
+
+def test_elision_dans_le_suivi(navigateur, serveur):
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.select_option("#c-mois", "3"); page.select_option("#c-annee", "2026")
+    page.click("[data-onglet='suivi']")
+    expect(page.locator("#suivi-bilan")).to_have_text("Aucune quittance d'avril 2026 envoyée pour le moment.")
+    page.click("[data-onglet='creer']")
+    page.select_option("#c-mois", "10")
+    page.fill("#c-datepaiement", "2026-08-12")
+    expect(page.locator("#btn-mois-paiement")).to_have_text("Faire la quittance d'août 2026")
+    ctx.close()
+
+
 def test_date_de_paiement_dans_un_autre_mois(navigateur, serveur):
     """Changer seulement la date du paiement ne change pas le mois : l'app le signale et propose de passer au bon mois."""
     ctx, page, _, _ = ouvrir(navigateur, serveur)

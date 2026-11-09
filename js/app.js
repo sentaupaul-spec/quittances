@@ -1,5 +1,5 @@
 // Interface de l'application.
-import { BAILLEUR, LOGEMENTS, MOIS, LIEU_PAR_DEFAUT, SIGNATURE_URL, APP_VERSION } from "./config.js";
+import { BAILLEUR, LOGEMENTS, MOIS, deMois, LIEU_PAR_DEFAUT, SIGNATURE_URL, APP_VERSION } from "./config.js";
 import { formatEuros, formatSaisie, lireMontant } from "./montant.js";
 import { telechargerLocataires } from "./sheet.js";
 import { chargerSignature, genererFichier, dateFr } from "./pdf.js";
@@ -225,7 +225,7 @@ function majAlerteMois() {
   if (!different) return;
   const paye = `${MOIS[m - 1].toLowerCase()} ${y}`;
   $("alerte-mois-texte").textContent = `⚠️ La date du paiement est en ${paye}, mais cette quittance est pour ${MOIS[moisIdx].toLowerCase()} ${annee} (étape 2).`;
-  $("btn-mois-paiement").textContent = `Faire la quittance de ${paye}`;
+  $("btn-mois-paiement").textContent = `Faire la quittance ${deMois(m - 1)}${paye}`;
   $("btn-mois-paiement").hidden = ![...$("c-annee").options].some((o) => +o.value === y);
 }
 
@@ -242,7 +242,7 @@ function majDejaEnvoyee() {
   const { moisIdx, annee } = moisChoisi();
   const e = l && envoiDe(l.cle, annee, moisIdx);
   $("deja-envoyee").hidden = !e;
-  if (e) $("deja-envoyee").textContent = `✓ La quittance de ${MOIS[moisIdx].toLowerCase()} ${annee} a déjà été envoyée ${quand(e.le)}.`;
+  if (e) $("deja-envoyee").textContent = `✓ La quittance ${deMois(moisIdx)}${MOIS[moisIdx].toLowerCase()} ${annee} a déjà été envoyée ${quand(e.le)}.`;
 }
 $("c-loyer").oninput = $("c-charges").oninput = majTotal;
 $("c-datepaiement").oninput = $("c-datepaiement").onchange = majAlerteMois;
@@ -344,7 +344,7 @@ function oublierEnvoi(id) {
 
 function afficherSuivi() {
   const { moisIdx, annee } = moisChoisi();
-  const leMois = `${MOIS[moisIdx].toLowerCase()} ${annee}`;
+  const leMois = `${deMois(moisIdx)}${MOIS[moisIdx].toLowerCase()} ${annee}`;
   const actifs = Object.keys(LOGEMENTS).flatMap((k) => etat.locataires.filter((l) => l.appt === k));
   // envois de ce mois pour des personnes qui ne sont plus dans la liste
   const anciens = [...etat.envois.values()].filter((e) => e.annee === annee && e.moisIdx === moisIdx
@@ -353,9 +353,9 @@ function afficherSuivi() {
 
   $("suivi-bilan").className = "suivi-bilan " + (actifs.length && nbFaits === actifs.length ? "complet" : "");
   $("suivi-bilan").textContent = !actifs.length ? ""
-    : nbFaits === actifs.length ? `✓ Toutes les quittances de ${leMois} sont envoyées.`
-    : nbFaits === 0 ? `Aucune quittance de ${leMois} envoyée pour le moment.`
-    : `${nbFaits} quittance${nbFaits > 1 ? "s" : ""} de ${leMois} envoyée${nbFaits > 1 ? "s" : ""} sur ${actifs.length}.`;
+    : nbFaits === actifs.length ? `✓ Toutes les quittances ${leMois} sont envoyées.`
+    : nbFaits === 0 ? `Aucune quittance ${leMois} envoyée pour le moment.`
+    : `${nbFaits} quittance${nbFaits > 1 ? "s" : ""} ${leMois} envoyée${nbFaits > 1 ? "s" : ""} sur ${actifs.length}.`;
 
   const ligne = (appt, civ, nom, cle, e, actif) => `
     <div class="suivi-ligne ${e ? "fait" : "a-faire"}">
@@ -378,7 +378,7 @@ function afficherSuivi() {
   $("suivi-liste").querySelectorAll("[data-oublier]").forEach((b) => {
     b.onclick = () => {
       const e = etat.envois.get(b.dataset.oublier);
-      if (e && confirm(`Marquer la quittance de ${MOIS[e.moisIdx].toLowerCase()} ${e.annee} de ${e.civ} ${e.nom} comme NON envoyée ?`)) {
+      if (e && confirm(`Marquer la quittance ${deMois(e.moisIdx)}${MOIS[e.moisIdx].toLowerCase()} ${e.annee} de ${e.civ} ${e.nom} comme NON envoyée ?`)) {
         oublierEnvoi(e.id);
       }
     };

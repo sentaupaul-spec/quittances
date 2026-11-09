@@ -31,10 +31,13 @@ export const SHEET_CSV_URL =
 export const LIEU_PAR_DEFAUT = "Montpellier";
 
 // Affichée en bas de l'app : permet de vérifier que l'iPad a bien la dernière version.
-export const APP_VERSION = "1.5.1";
+export const APP_VERSION = "1.5.2";
 
 export const SIGNATURE_URL = "assets/signature.png";
 export const SIGNATURE_TAILLE_MM = { largeur: 60, hauteur: 38 };
+
+/** « de » devant un mois, avec élision : « de mars », « d'avril », « d'août », « d'octobre ». */
+export const deMois = (i) => (["Avril", "Août", "Octobre"].includes(MOIS[i]) ? "d'" : "de ");
 
 export const MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet",
   "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
