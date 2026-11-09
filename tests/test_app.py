@@ -147,6 +147,77 @@ def test_creation_et_partage(navigateur, serveur):
 
 
 
+def texte_pdf(partage):
+    return " ".join(fitz.open(stream=base64.b64decode(partage["b64"]), filetype="pdf")[0].get_text().split())
+
+
+def test_quittance_d_un_autre_mois(navigateur, serveur):
+    """Le mois de l'étape 2 commande tout : titre, période, date du paiement, nom du fichier, mail."""
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.select_option("#c-mois", "0"); page.select_option("#c-annee", "2026")
+    expect(page.locator("#c-datepaiement")).to_have_value("2026-01-01")
+    expect(page.locator("#c-debut")).to_have_value("2026-01-01")
+    expect(page.locator("#c-fin")).to_have_value("2026-01-31")
+    expect(page.locator("#resume")).to_contain_text("Janvier 2026")
+    expect(page.locator("#resume")).to_contain_text("Période du 01/01/2026 au 31/01/2026")
+    expect(page.locator("#alerte-mois")).to_be_hidden()
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
+    p = partages(page)[0]
+    assert p["nom"] == "Quittance_Janvier_2026_Julie_Martin.pdf"
+    assert p["titre"] == "Quittance de loyer — Janvier 2026"
+    assert "du mois de janvier 2026" in p["texte"]
+    texte = texte_pdf(p)
+    assert "Mois de Janvier 2026" in texte
+    assert "période de location du 01/01/2026 au 31/01/2026" in texte
+    assert "Date du paiement : le 01/01/2026" in texte
+    ctx.close()
+
+
+def test_date_de_paiement_dans_un_autre_mois(navigateur, serveur):
+    """Changer seulement la date du paiement ne change pas le mois : l'app le signale et propose de passer au bon mois."""
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.select_option("#c-mois", "10"); page.select_option("#c-annee", "2026")
+    page.fill("#c-charges", "85")
+    page.fill("#c-datepaiement", "2026-01-15")
+    alerte = page.locator("#alerte-mois")
+    expect(alerte).to_be_visible()
+    expect(alerte).to_contain_text("La date du paiement est en janvier 2026, mais cette quittance est pour novembre 2026")
+    page.locator("#btn-mois-paiement").click()
+    expect(page.locator("#c-mois")).to_have_value("0")
+    expect(page.locator("#s-mois")).to_have_value("0")
+    expect(page.locator("#c-debut")).to_have_value("2026-01-01")
+    expect(page.locator("#c-fin")).to_have_value("2026-01-31")
+    expect(page.locator("#c-datepaiement")).to_have_value("2026-01-15")   # gardée
+    expect(page.locator("#c-charges")).to_have_value("85")                # gardé
+    expect(page.locator("#c-total")).to_have_text("605,00 €")
+    expect(alerte).to_be_hidden()
+
+    # un paiement réellement décalé reste possible : l'alerte ne bloque pas
+    page.select_option("#c-mois", "10")
+    page.fill("#c-datepaiement", "2026-10-28")
+    expect(alerte).to_be_visible()
+    page.click("#btn-envoyer")
+    expect(page.locator("#message-creer")).to_have_text("C'est fait.")
+    texte = texte_pdf(partages(page)[0])
+    assert "Mois de Novembre 2026" in texte
+    assert "période de location du 01/11/2026 au 30/11/2026" in texte
+    assert "Date du paiement : le 28/10/2026" in texte
+    ctx.close()
+
+
+def test_periode_modifiee_visible(navigateur, serveur):
+    ctx, page, _, _ = ouvrir(navigateur, serveur)
+    choisir(page, "Julie Martin")
+    page.select_option("#c-mois", "10"); page.select_option("#c-annee", "2026")
+    page.locator("#plus summary").click()
+    page.fill("#c-fin", "2026-11-15")
+    expect(page.locator("#resume")).to_contain_text("Période du 01/11/2026 au 15/11/2026")
+    ctx.close()
+
+
 def test_partage_annule(navigateur, serveur):
     ctx, page, _, _ = ouvrir(navigateur, serveur)
     page.evaluate("window.__reponsePartage = 'annule'")

@@ -185,7 +185,6 @@ function remplirFormulaire() {
   const l = locataireChoisi();
   if (!l) return;
   const { moisIdx, annee } = moisChoisi();
-  $("resume").innerHTML = `<strong>${esc(l.civ)} ${esc(l.nom)}</strong> — ${esc(MOIS[moisIdx])} ${annee}`;
   $("c-loyer").value = formatSaisie(l.loyer);
   $("c-charges").value = formatSaisie(l.charges);
   $("c-datepaiement").value = iso(new Date(annee, moisIdx, 1));
@@ -200,9 +199,34 @@ function remplirFormulaire() {
   majEtatCopie();
   $("aide-mail").textContent = l.email ? "" : `Pas d'adresse e-mail enregistrée pour ${l.civ} ${l.nom} : demandez-la à Paul.`;
   majDejaEnvoyee();
+  majResume();
+  majAlerteMois();
   document.querySelectorAll("#verif input").forEach((i) => i.classList.remove("invalide"));
   effacerMessage("message-creer");
   majTotal();
+}
+
+/** Étape 3 : le mois et la période qui seront écrits sur la quittance. */
+function majResume() {
+  const l = locataireChoisi();
+  if (!l) return;
+  const { moisIdx, annee } = moisChoisi();
+  $("resume").innerHTML = `<strong>${esc(l.civ)} ${esc(l.nom)}</strong> — ${esc(MOIS[moisIdx])} ${annee}`
+    + `<br>Période du ${esc(dateFr($("c-debut").value))} au ${esc(dateFr($("c-fin").value))}`;
+}
+
+/** Prévient si la date du paiement n'est pas dans le mois de la quittance (sans bloquer : un paiement peut être décalé). */
+function majAlerteMois() {
+  const { moisIdx, annee } = moisChoisi();
+  const v = $("c-datepaiement").value;
+  const [y, m] = v.split("-").map(Number);
+  const different = !!v && (y !== annee || m - 1 !== moisIdx);
+  $("alerte-mois").hidden = !different;
+  if (!different) return;
+  const paye = `${MOIS[m - 1].toLowerCase()} ${y}`;
+  $("alerte-mois-texte").textContent = `⚠️ La date du paiement est en ${paye}, mais cette quittance est pour ${MOIS[moisIdx].toLowerCase()} ${annee} (étape 2).`;
+  $("btn-mois-paiement").textContent = `Faire la quittance de ${paye}`;
+  $("btn-mois-paiement").hidden = ![...$("c-annee").options].some((o) => +o.value === y);
 }
 
 function majTotal() {
@@ -221,6 +245,17 @@ function majDejaEnvoyee() {
   if (e) $("deja-envoyee").textContent = `✓ La quittance de ${MOIS[moisIdx].toLowerCase()} ${annee} a déjà été envoyée ${quand(e.le)}.`;
 }
 $("c-loyer").oninput = $("c-charges").oninput = majTotal;
+$("c-datepaiement").oninput = $("c-datepaiement").onchange = majAlerteMois;
+$("c-debut").oninput = $("c-debut").onchange = $("c-fin").oninput = $("c-fin").onchange = majResume;
+$("btn-mois-paiement").onclick = () => {
+  // Passe au mois du paiement en gardant ce qui a été tapé (date du paiement, montants).
+  const date = $("c-datepaiement").value, loyer = $("c-loyer").value, charges = $("c-charges").value;
+  const [y, m] = date.split("-").map(Number);
+  changerMois(m - 1, y);
+  $("c-datepaiement").value = date; $("c-loyer").value = loyer; $("c-charges").value = charges;
+  majTotal();
+  majAlerteMois();
+};
 
 /** Toutes les informations de la quittance. */
 function quittance(l, champs) {

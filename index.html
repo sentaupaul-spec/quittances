@@ -50,7 +50,7 @@
       </div>
 
       <div class="carte" id="etape-2">
-        <h2 class="etape"><span class="num">2</span>Choisir le mois</h2>
+        <h2 class="etape"><span class="num">2</span>Choisir le mois de la quittance</h2>
         <div class="grille2">
           <div class="champ"><label for="c-mois">Mois</label><select id="c-mois"></select></div>
           <div class="champ"><label for="c-annee">Année</label><select id="c-annee"></select></div>
@@ -68,6 +68,10 @@
           </div>
           <div class="total"><span>Total</span><span id="c-total">0,00 €</span></div>
           <div class="champ"><label for="c-datepaiement">Date du paiement</label><input id="c-datepaiement" type="date"></div>
+          <div class="rappel" id="alerte-mois" hidden>
+            <p id="alerte-mois-texte"></p>
+            <button class="btn btn-secondaire" id="btn-mois-paiement"></button>
+          </div>
           <details class="plus" id="plus">
             <summary>Autres informations (rarement à modifier)</summary>
             <div class="plus-int">
