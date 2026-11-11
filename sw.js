@@ -5,7 +5,7 @@
 // publiée (et on la garde de côté) ; sans internet, on sert la copie gardée.
 // Le tableau Google (autre site) n'est pas géré ici : l'app garde elle-même la dernière liste.
 
-const CACHE = "quittances-v9";
+const CACHE = "quittances-v10";
 const FICHIERS = [
   "./",
   "index.html",
